@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ascension Awaits — Game Frame v1 Preview</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,sans-serif;background:#090c16;color:#e9e4d6}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 50% -25%,#23365c,#090c16 65%);min-height:100dvh}
+button{cursor:pointer;font:inherit}button:focus-visible{outline:2px solid #f2c878;outline-offset:3px}
+.shell{width:min(1050px,100%);margin:auto;padding:16px}.mast{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 4px}
+.kicker{color:#e2b978;text-transform:uppercase;letter-spacing:.23em;font-size:.72rem}
+h1{font-family:Georgia,serif;font-weight:normal;margin:.2em 0;font-size:clamp(1.6rem,4vw,2.7rem)}
+.note{color:#aab6cc;font-size:.85rem}.surface{border:1px solid #7d95ad55;border-radius:15px;background:linear-gradient(145deg,#17233bcc,#0b1424e8);box-shadow:0 22px 65px #0006;padding:18px}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 270px;gap:16px}.scene{min-height:440px;background:radial-gradient(circle at 50% 25%,#34507355,transparent 65%);border:1px solid #8393ac40;border-radius:12px;padding:18px}
+.stamp{display:inline-block;border:2px solid #b7655a;color:#d88a7d;padding:4px 9px;letter-spacing:.14em;transform:rotate(-4deg);font-size:.71rem;text-transform:uppercase}
+.story{max-width:560px;margin:44px auto 12px;padding:22px;background:#e3d4b7;color:#2e2a26;border-radius:7px;box-shadow:0 0 0 5px #2b3248,0 0 0 6px #d7b97788}
+.story h2{font-family:Georgia,serif;font-weight:normal;font-size:1.6rem;margin:.4em 0}.story p{line-height:1.55}
+.choices{display:grid;gap:9px;margin-top:20px}.choices button,.open-sheet{padding:12px;border:1px solid #bba16d;background:#293c54;color:#f4dfbb;border-radius:7px;text-align:left}.choices button:hover,.open-sheet:hover{background:#3b5371}
+.readout{display:grid;gap:12px;align-content:start}.metric{display:flex;justify-content:space-between;border-bottom:1px solid #ffffff22;padding:6px 0}
+#overlay{position:fixed;inset:0;background:#02050ad9;display:grid;place-items:center;padding:10px;z-index:5}#overlay[hidden]{display:none}
+.sheet{width:min(460px,100%);max-height:95dvh;overflow:auto;background:#e6d8b9;color:#292922;border:6px double #9e8054;padding:20px;border-radius:8px}
+.sheet h2{font-family:Georgia,serif;font-size:2rem;margin:.4em 0}.sheet .close{float:right;background:#311f20;color:#fbe6c9;border:0;border-radius:4px;padding:7px 12px}
+.sheet dl{display:grid;grid-template-columns:1fr 1fr;gap:10px}.sheet dt{font-size:.7rem;text-transform:uppercase;letter-spacing:.08em}.sheet dd{margin:2px 0;font-size:1.35rem;font-weight:700}
+@media(max-width:700px){.grid{grid-template-columns:1fr}.scene{min-height:360px}.readout{display:none}.story{margin:25px auto 8px;padding:17px}.shell{padding:10px}.sheet{padding:14px}}
+</style></head><body><main class="shell">
+<header class="mast"><div><div class="kicker">Department of Posthumous Affairs</div><h1>Ascension Awaits</h1><div class="note">Game Frame v1 · isolated interface preview</div></div><button id="profile" class="open-sheet">Soul Case File ↗</button></header>
+<div class="grid"><section class="surface"><div class="scene"><span class="stamp">Placement Pending</span><article class="story"><div class="kicker" style="color:#875137">Filed incident</div><h2 id="story-title"></h2><p id="story-text"></p><div class="choices" id="choices"></div></article></div></section>
+<aside class="surface readout"><div class="kicker">Case summary</div><h2 id="person"></h2><div id="metrics"></div><button id="profile-side" class="open-sheet">Open full character record</button><p class="note">Preview data only. No actions are sent to the game engine or saved.</p></aside></div>
+</main><div id="overlay" hidden><section class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title"><button class="close" id="close" aria-label="Close character record">✕</button><div class="kicker" style="color:#885329">Soul Registry — provisional</div><h2 id="sheet-title">Billy</h2><p>DECEASED · Documentation incomplete · Appeal unlikely</p><dl id="sheet-metrics"></dl><h3>Acquired effects</h3><p id="flags"></p><h3>Inventory</h3><p id="inventory"></p><h3>Associates</h3><p id="companions"></p></section></div>
+<script type="module">
+import { projectGameFrame } from './js/game-frame/adapter.js';
+// Synthetic fixture: intentionally isolated from live save, Director and runtime.
+const fixture={state:{level:1,xp:0,actionPoints:3,maxActionPoints:3,currentWorld:'AFTERLIFE',glitchLevel:1,heat:0,npcs:{jinx:2,caseworker:-1},inventory:{paperclip:1},flags:{placement_pending:true},turn:1}};
+const sample={id:'frame-demo-arrival',title:'Your Number Has Been Called. Probably.',text:'The Case Worker peers over a mountain of forms. “Cause of death?” He pauses. “Actually, don’t tell me. The box is too small.”',choices:[{id:'respond',label:'Ask to see the paperwork'},{id:'glitch',label:'Check whether the paperwork is real'},{id:'wait',label:'Take a number and wait'}]};
+const frame=projectGameFrame(fixture,sample), el=id=>document.getElementById(id);
+el('person').textContent=frame.character.name;
+el('story-title').textContent=frame.storylet.title;el('story-text').textContent=frame.storylet.text;
+const rows=[['Level',frame.character.level],['Action points',frame.character.actionPoints+'/'+frame.character.maximumActionPoints],['Glitch',frame.character.glitch],['Heat',frame.character.heat],['Realm',frame.character.location],['Turn',frame.turn]];
+for(const [name,value] of rows){const row=document.createElement('div');row.className='metric';const a=document.createElement('span');a.textContent=name;const b=document.createElement('strong');b.textContent=value;row.append(a,b);el('metrics').append(row);const dt=document.createElement('div');const k=document.createElement('dt');k.textContent=name;const v=document.createElement('dd');v.textContent=value;dt.append(k,v);el('sheet-metrics').append(dt)}
+for(const choice of frame.storylet.choices){const button=document.createElement('button');button.textContent=choice.label;button.addEventListener('click',()=>{el('story-text').textContent='Preview only: "'+choice.label+'" would be routed to the canonical Director choice handler after integration.'});el('choices').append(button)}
+el('flags').textContent=frame.flags.join(', ')||'None recorded';
+el('inventory').textContent=frame.inventory.map(x=>x.name+' × '+x.count).join(', ')||'Empty';
+el('companions').textContent=frame.companions.map(x=>x.name+' ('+x.standing+')').join(', ')||'No associates';
+const open=()=>{el('overlay').hidden=false;el('close').focus()},close=()=>{el('overlay').hidden=true;el('profile').focus()};
+el('profile').addEventListener('click',open);el('profile-side').addEventListener('click',open);el('close').addEventListener('click',close);el('overlay').addEventListener('click',event=>{if(event.target===el('overlay'))close()});document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!el('overlay').hidden)close()});
+</script></body></html>
