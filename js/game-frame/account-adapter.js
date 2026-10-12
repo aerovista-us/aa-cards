@@ -2,13 +2,14 @@
 // Mirrors the documented @aerovista-us/app-adapter/browser handoff shape.
 // The exchange MUST take place on an approved backend, never on GitHub Pages.
 const ACCOUNT = 'https://account.aerocoreos.com';
+const BRIDGE = 'https://ascension-auth.aerovista.us';
 const STATE_KEY = 'aa-cards:account-handoff-state';
 export const AUTH_MODE = Object.freeze({ status: 'awaiting_gateway', appId: 'aa_cards' });
 
 export function buildAccountEntry({ action='login', origin, state, next='/aa-cards/' }) {
   if (action !== 'login' && action !== 'register') throw new TypeError('Unsupported account action');
   if (!origin?.startsWith('https://') || !state || typeof state !== 'string' || state.length < 20) throw new TypeError('Secure origin and random state required');
-  const callback = new URL('/auth/callback', 'https://ascension-auth.aerovista.us');
+  const callback = new URL('/auth/callback', BRIDGE);
   callback.searchParams.set('next',next);
   const target=new URL('/'+action,ACCOUNT);
   target.searchParams.set('client_id','aa_cards');
@@ -29,6 +30,11 @@ export function createAccountEntry({ origin=window.location.origin }={}) {
     login() { throw new Error('Identity Gateway integration is awaiting an authorized same-origin backend'); },
     registration() { throw new Error('Identity Gateway integration is awaiting an authorized same-origin backend'); },
     accountUrl: ACCOUNT,
+    bridgeUrl: BRIDGE,
+    loginPath: BRIDGE + '/login',
+    registrationPath: BRIDGE + '/register',
+    sessionPath: BRIDGE + '/api/session',
+    logoutPath: BRIDGE + '/api/logout',
     appId:'aa_cards',
     callbackPath:'https://ascension-auth.aerovista.us/auth/callback'
   };
