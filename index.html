@@ -22,11 +22,19 @@ h1{font-family:Georgia,serif;font-weight:normal;margin:.2em 0;font-size:clamp(1.
 @media(max-width:700px){.grid{grid-template-columns:1fr}.scene{min-height:360px}.readout{display:none}.story{margin:25px auto 8px;padding:17px}.shell{padding:10px}.sheet{padding:14px}}
 </style></head><body><main class="shell">
 <header class="mast"><div><div class="kicker">Department of Posthumous Affairs</div><h1>Ascension Awaits</h1><div class="note">Game Frame v1 · isolated interface preview</div></div><button id="profile" class="open-sheet">Soul Case File ↗</button></header>
+<section class="surface" style="margin-bottom:14px" aria-label="Import saved Ascension character">
+  <div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px;justify-content:space-between">
+    <div><strong>View your own Soul Case File</strong><div class="note">Choose an exported Ascension run JSON file. It stays on your device; this preview does not upload or save it.</div></div>
+    <label class="open-sheet" for="run-import" style="cursor:pointer">Import run JSON</label><input id="run-import" type="file" accept=".json,application/json" style="position:absolute;width:1px;height:1px;opacity:0" aria-label="Import run JSON">
+  </div>
+  <p id="import-status" class="note" role="status" aria-live="polite">Demo mode · synthetic story choices only</p>
+</section>
 <div class="grid"><section class="surface"><div class="scene"><span class="stamp">Placement Pending</span><article class="story"><div class="kicker" style="color:#875137">Filed incident</div><h2 id="story-title"></h2><p id="story-text"></p><div class="choices" id="choices"></div></article></div></section>
 <aside class="surface readout"><div class="kicker">Case summary</div><h2 id="person"></h2><div id="metrics"></div><button id="profile-side" class="open-sheet">Open full character record</button><p class="note">Preview data only. No actions are sent to the game engine or saved.</p></aside></div>
 </main><div id="overlay" hidden><section class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title"><button class="close" id="close" aria-label="Close character record">✕</button><div class="kicker" style="color:#885329">Soul Registry — provisional</div><h2 id="sheet-title">Billy</h2><p>DECEASED · Documentation incomplete · Appeal unlikely</p><dl id="sheet-metrics"></dl><h3>Acquired effects</h3><p id="flags"></p><h3>Inventory</h3><p id="inventory"></p><h3>Associates</h3><p id="companions"></p></section></div>
 <script type="module">
 import { projectGameFrame } from './js/game-frame/adapter.js';
+import { parseAscensionExport, renderImportedRecord } from './js/game-frame/save-import.js';
 // Synthetic fixture: intentionally isolated from live save, Director and runtime.
 const fixture={state:{level:1,xp:0,actionPoints:3,maxActionPoints:3,currentWorld:'AFTERLIFE',glitchLevel:1,heat:0,npcs:{jinx:2,caseworker:-1},inventory:{paperclip:1},flags:{placement_pending:true},turn:1}};
 const sample={id:'frame-demo-arrival',title:'Your Number Has Been Called. Probably.',text:'The Case Worker peers over a mountain of forms. “Cause of death?” He pauses. “Actually, don’t tell me. The box is too small.”',choices:[{id:'respond',label:'Ask to see the paperwork'},{id:'glitch',label:'Check whether the paperwork is real'},{id:'wait',label:'Take a number and wait'}]};
@@ -41,4 +49,15 @@ el('inventory').textContent=frame.inventory.map(x=>x.name+' × '+x.count).join('
 el('companions').textContent=frame.companions.map(x=>x.name+' ('+x.standing+')').join(', ')||'No associates';
 const open=()=>{el('overlay').hidden=false;el('close').focus()},close=()=>{el('overlay').hidden=true;el('profile').focus()};
 el('profile').addEventListener('click',open);el('profile-side').addEventListener('click',open);el('close').addEventListener('click',close);el('overlay').addEventListener('click',event=>{if(event.target===el('overlay'))close()});document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!el('overlay').hidden)close()});
+el('run-import').addEventListener('change',async event=>{
+  const file=event.target.files?.[0];
+  if(!file)return;
+  try{
+    if(file.size>5_000_000) throw new Error('File exceeds the 5 MB preview limit');
+    const frame=parseAscensionExport(await file.text());
+    renderImportedRecord(frame);
+    el('import-status').textContent='Imported locally · '+frame.character.location+' · '+frame.character.actionPoints+'/'+frame.character.maximumActionPoints+' AP · no data uploaded';
+  }catch(error){el('import-status').textContent='Import not accepted: '+error.message}
+  finally{event.target.value=''}
+});
 </script></body></html>
