@@ -13,7 +13,7 @@ h1{font-family:Georgia,serif;font-weight:normal;margin:.2em 0;font-size:clamp(1.
 .stamp{display:inline-block;border:2px solid #b7655a;color:#d88a7d;padding:4px 9px;letter-spacing:.14em;transform:rotate(-4deg);font-size:.71rem;text-transform:uppercase}
 .story{max-width:560px;margin:44px auto 12px;padding:22px;background:#e3d4b7;color:#2e2a26;border-radius:7px;box-shadow:0 0 0 5px #2b3248,0 0 0 6px #d7b97788}
 .story h2{font-family:Georgia,serif;font-weight:normal;font-size:1.6rem;margin:.4em 0}.story p{line-height:1.55}
-.choices{display:grid;gap:9px;margin-top:20px}.choices button,.open-sheet{padding:12px;border:1px solid #bba16d;background:#293c54;color:#f4dfbb;border-radius:7px;text-align:left}.choices button:hover,.open-sheet:hover{background:#3b5371}
+.choices{display:grid;gap:9px;margin-top:20px}.choices button,.open-sheet{padding:12px;border:1px solid #bba16d;background:#293c54;color:#f4dfbb;border-radius:7px;text-align:left}.choices button:hover,.open-sheet:hover{background:#3b5371}.choices button:disabled{opacity:.58;cursor:not-allowed}
 .readout{display:grid;gap:12px;align-content:start}.metric{display:flex;justify-content:space-between;border-bottom:1px solid #ffffff22;padding:6px 0}
 #overlay{position:fixed;inset:0;background:#02050ad9;display:grid;place-items:center;padding:10px;z-index:5}#overlay[hidden]{display:none}
 .sheet{width:min(460px,100%);max-height:95dvh;overflow:auto;background:#e6d8b9;color:#292922;border:6px double #9e8054;padding:20px;border-radius:8px}
@@ -21,14 +21,15 @@ h1{font-family:Georgia,serif;font-weight:normal;margin:.2em 0;font-size:clamp(1.
 .sheet dl{display:grid;grid-template-columns:1fr 1fr;gap:10px}.sheet dt{font-size:.7rem;text-transform:uppercase;letter-spacing:.08em}.sheet dd{margin:2px 0;font-size:1.35rem;font-weight:700}
 @media(max-width:700px){.grid{grid-template-columns:1fr}.scene{min-height:360px}.readout{display:none}.story{margin:25px auto 8px;padding:17px}.shell{padding:10px}.sheet{padding:14px}}
 </style></head><body><main class="shell">
-<header class="mast"><div><div class="kicker">Department of Posthumous Affairs</div><h1>Ascension Awaits</h1><div class="note">Game Frame v1 · isolated interface preview</div></div><button id="profile" class="open-sheet">Soul Case File ↗</button></header>
+<header class="mast"><div><div class="kicker">Department of Posthumous Affairs</div><h1>Ascension Awaits</h1><div class="note">Character interface preview · AeroVista account required for gameplay</div></div><button id="profile" class="open-sheet">Soul Case File ↗</button></header>
 <section class="surface" style="margin-bottom:14px" aria-label="Import saved Ascension character">
   <div style="display:flex;flex-wrap:wrap;align-items:center;gap:12px;justify-content:space-between">
     <div><strong>View your own Soul Case File</strong><div class="note">Choose an exported Ascension run JSON file. It stays on your device; this preview does not upload or save it.</div></div>
     <label class="open-sheet" for="run-import" style="cursor:pointer">Import run JSON</label><input id="run-import" type="file" accept=".json,application/json" style="position:absolute;width:1px;height:1px;opacity:0" aria-label="Import run JSON">
   </div>
-  <p id="import-status" class="note" role="status" aria-live="polite">Demo mode · synthetic story choices only</p>
+  <p id="import-status" class="note" role="status" aria-live="polite">Design preview only · No anonymous play · Free opening adventure after sign-in is enabled</p>
 </section>
+<section class="surface" style="margin-bottom:14px" aria-label="Account access policy"><strong>AeroVista account required to play</strong><p class="note">Sign in with your existing AeroVista account or create a free account when Ascension authentication launches. The opening adventure will be free; future expansions may require purchase. This page is a non-playable design preview—not a guest game.</p></section>
 <div class="grid"><section class="surface"><div class="scene"><span class="stamp">Placement Pending</span><article class="story"><div class="kicker" style="color:#875137">Filed incident</div><h2 id="story-title"></h2><p id="story-text"></p><div class="choices" id="choices"></div></article></div></section>
 <aside class="surface readout"><div class="kicker">Case summary</div><h2 id="person"></h2><div id="metrics"></div><button id="profile-side" class="open-sheet">Open full character record</button><p class="note">Preview data only. No actions are sent to the game engine or saved.</p></aside></div>
 </main><div id="overlay" hidden><section class="sheet" role="dialog" aria-modal="true" aria-labelledby="sheet-title"><button class="close" id="close" aria-label="Close character record">✕</button><div class="kicker" style="color:#885329">Soul Registry — provisional</div><h2 id="sheet-title">Billy</h2><p>DECEASED · Documentation incomplete · Appeal unlikely</p><dl id="sheet-metrics"></dl><h3>Acquired effects</h3><p id="flags"></p><h3>Inventory</h3><p id="inventory"></p><h3>Associates</h3><p id="companions"></p></section></div>
@@ -43,7 +44,7 @@ el('person').textContent=frame.character.name;
 el('story-title').textContent=frame.storylet.title;el('story-text').textContent=frame.storylet.text;
 const rows=[['Level',frame.character.level],['Action points',frame.character.actionPoints+'/'+frame.character.maximumActionPoints],['Glitch',frame.character.glitch],['Heat',frame.character.heat],['Realm',frame.character.location],['Turn',frame.turn]];
 for(const [name,value] of rows){const row=document.createElement('div');row.className='metric';const a=document.createElement('span');a.textContent=name;const b=document.createElement('strong');b.textContent=value;row.append(a,b);el('metrics').append(row);const dt=document.createElement('div');const k=document.createElement('dt');k.textContent=name;const v=document.createElement('dd');v.textContent=value;dt.append(k,v);el('sheet-metrics').append(dt)}
-for(const choice of frame.storylet.choices){const button=document.createElement('button');button.textContent=choice.label;button.addEventListener('click',()=>{el('story-text').textContent='Preview only: "'+choice.label+'" would be routed to the canonical Director choice handler after integration.'});el('choices').append(button)}
+for(const choice of frame.storylet.choices){const button=document.createElement('button');button.textContent=choice.label;button.disabled=true;button.title='Account-required gameplay is not enabled on this design preview';el('choices').append(button)}
 el('flags').textContent=frame.flags.join(', ')||'None recorded';
 el('inventory').textContent=frame.inventory.map(x=>x.name+' × '+x.count).join(', ')||'Empty';
 el('companions').textContent=frame.companions.map(x=>x.name+' ('+x.standing+')').join(', ')||'No associates';
