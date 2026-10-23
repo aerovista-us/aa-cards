@@ -29,8 +29,15 @@ export function createDirectorTransaction({store,director,entitlements,clock=()=
         if(!await entitlements.canAccessChapter(identity,chapter,current))fail(403,'chapter_access_denied');
         const outcome=await director.executeChoice(current,{storyletId:input.storyletId,choiceId:input.choiceId});
         if(!outcome?.nextState)fail(503,'director_execution_failed');
+        const nextChapter=outcome.chapterId??chapter;
+        // A free-chapter action cannot bypass a premium boundary by transitioning
+        // into protected content. Validate the destination before durable commit.
+        if(!await entitlements.canAccessChapter(identity,nextChapter,current))
+          fail(403,'destination_chapter_access_denied');
+        if(!ident(outcome.nextStoryletId)||!ident(nextChapter))
+          fail(503,'invalid_director_transition');
         const next={...current,state:outcome.nextState,currentStoryletId:outcome.nextStoryletId,
-          chapterId:outcome.chapterId??chapter,revision:current.revision+1,updatedAt:clock()};
+          chapterId:nextChapter,revision:current.revision+1,updatedAt:clock()};
         await tx.writeOwned(identity.subject,current.revision,next);
         return next;
       });
