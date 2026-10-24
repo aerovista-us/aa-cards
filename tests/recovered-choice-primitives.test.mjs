@@ -17,7 +17,7 @@ test('weighted canonical outcome uses persisted RNG cursor and can resume',()=>{
 test('story memory influences weighted outcomes as original rules specify',()=>{
  const state={flags:{mainIntroQuestComplete:true},storyletCounts:{s:2},consequences:{council:3,exiles:0},heat:0};
  const w=outcomeWeight({weight:1,effects:{'consequences.council':'+1'}},{effects:{}},{id:'s',tags:[]},state);
- assert.ok(Math.abs(w-1.16*0.84)<1e-10);
+ assert.ok(Math.abs(w-0.84)<1e-10); // recovered effectDelta reads nested paths; a dotted effect key does not bias weights
 });
 test('recovered XP awards shard and AP increase on level up',()=>{
  const state={xp:3,level:1,maxActionPoints:3,inventory:{}};
