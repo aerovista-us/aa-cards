@@ -1,7 +1,7 @@
 // Server-only HTTP controller: authentication and canonical context are required.
 // All request identity/context fields are ignored; only utterance is accepted.
-export function createNpcHttpHandler({resolveSession,loadOwnedRun,visibleNpcContext,dialogue,origin,maxBodyBytes=2048}){
- for(const [name,fn] of Object.entries({resolveSession,loadOwnedRun,visibleNpcContext}))
+export function createNpcHttpHandler({resolveSession,loadOwnedRun,visibleNpcContext,verifyCsrf,dialogue,origin,maxBodyBytes=2048}){
+ for(const [name,fn] of Object.entries({resolveSession,loadOwnedRun,visibleNpcContext,verifyCsrf}))
   if(typeof fn!=='function')throw new Error('Missing NPC handler dependency: '+name);
  if(typeof dialogue?.talk!=='function'||typeof origin!=='string'||!origin.startsWith('https://'))
   throw new Error('Secure NPC dialogue service and origin required');
@@ -9,6 +9,7 @@ export function createNpcHttpHandler({resolveSession,loadOwnedRun,visibleNpcCont
  return async function handleNpc(req,res){
   if(req.method!=='POST')return reply(res,405,{error:'method_not_allowed'});
   if(req.headers.origin!==origin)return reply(res,403,{error:'invalid_origin'});
+  if(await verifyCsrf(req)!==true)return reply(res,403,{error:'invalid_csrf'});
   if(!String(req.headers['content-type']||'').toLowerCase().startsWith('application/json'))return reply(res,415,{error:'json_required'});
   let body='';
   try{
