@@ -6,7 +6,7 @@ export function createOwnerRunStore({pool, executeCanonicalChoice, authorizeChap
   const assertId = x => typeof x === 'string' && /^[a-zA-Z0-9:_-]{1,160}$/.test(x);
   async function commitChoice(identity, runId, input) {
     if (!assertId(identity?.subject)) throw Object.assign(new Error('authentication_required'),{status:401});
-    if (!assertId(runId) || !assertId(input?.choiceId) || !assertId(input?.storyletId) ||
+    if (!assertId(runId) || !assertId(input?.choiceId) || !((typeof input?.storyletId === 'string') && /^[a-zA-Z0-9:_.-]{1,160}$/.test(input.storyletId)) ||
         !Number.isSafeInteger(input.expectedRevision) || input.expectedRevision < 0)
       throw Object.assign(new Error('invalid_choice'),{status:422});
     const client=await pool.connect();
