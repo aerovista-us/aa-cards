@@ -19,6 +19,6 @@ try {
  assert.equal(ok.length,1);assert.equal(denied.length,1);assert.equal(denied[0].reason.status,409);
  const reloaded=await store.loadOwnedRun({subject:'alice'},runId);
  assert.equal(reloaded.revision,1);assert.deepEqual(reloaded.state,ok[0].value.state);assert.equal(reloaded.state.storyMemory.decisionHistory.at(-1).choiceId,input.choiceId);
- assert.equal(await store.loadOwnedRun({subject:'bob'},'run-1'),null);
+ assert.equal(await store.loadOwnedRun({subject:'bob'},runId),null);
  console.log(JSON.stringify({result:'PASS',limitedPath:true,revision:reloaded.revision,exactReload:true,ownerIsolation:true,echoes:reloaded.state.storyMemory.pendingEchoes.length,rngDraws:reloaded.state.rngDraws}));
 }finally{await pool.end()}
