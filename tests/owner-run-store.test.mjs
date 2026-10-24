@@ -39,3 +39,14 @@ test('stale replay fails before canonical executor and write',async()=>{
 test('requires real executor and chapter authorization',()=>{
  assert.throws(()=>createOwnerRunStore({pool:{connect(){}}}),/Required server authorities/);
 });
+
+test('accepts canonical dotted storylet IDs and PostgreSQL bigint string revisions',async()=>{
+ const h=harness();
+ h.db.revision='0';
+ const saved=await h.store.commitChoice({subject:'alice'},'run-1',{
+   storyletId:'earth.construction.clock_in',
+   choiceId:'check_safety_board',expectedRevision:0
+ });
+ assert.equal(saved.revision,1);
+ assert.equal((await h.store.loadOwnedRun({subject:'alice'},'run-1')).revision,1);
+});
