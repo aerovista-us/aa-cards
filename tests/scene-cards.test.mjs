@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {projectSceneCard,projectVisibleGameScene,SCENE_KINDS} from '../js/game-frame/scene-cards.js';
+import {readFileSync} from 'node:fs';
+const source=readFileSync(new URL('../js/game-frame/scene-cards.js',import.meta.url),'utf8');
+const {projectSceneCard,projectVisibleGameScene,SCENE_KINDS}=await import('data:text/javascript;charset=utf-8,'+encodeURIComponent(source));
 
 test('provides all canonical opening presentation types without inventing mechanics',()=>{
   for(const kind of SCENE_KINDS) assert.equal(projectSceneCard({id:'opening',kind,body:'Visible scene'}).kind,kind);
