@@ -1,0 +1,56 @@
+name: Ascension isolated PostgreSQL proof
+on:
+  pull_request:
+    paths:
+      - 'gateway/**'
+      - 'tests/real-pg-prologue-proof.mjs'
+      - 'tests/real-pg-choice-proof.mjs'
+      - '.github/workflows/ascension-pg-proof.yml'
+  push:
+    branches: [feat/canonical-prologue-map-cutscene-m15]
+permissions:
+  contents: read
+jobs:
+  disposable-postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 15
+    env:
+      ISOLATED_PG_URL: postgres://postgres@127.0.0.1:5432/postgres
+      PG_REQUIRE_FROM: /tmp/ascension-pg-proof/package.json
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install PostgreSQL test client outside product source
+        run: |
+          mkdir -p /tmp/ascension-pg-proof
+          cd /tmp/ascension-pg-proof
+          npm init -y >/dev/null
+          npm install --no-save --ignore-scripts pg@8
+      - name: Migrate disposable database
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          import {createRequire} from 'node:module';
+          const {Client}=createRequire(process.env.PG_REQUIRE_FROM)('pg');
+          const client=new Client({connectionString:process.env.ISOLATED_PG_URL});
+          await client.connect();
+          try{await client.query(fs.readFileSync('gateway/migrations/001_player_runs.sql','utf8'))}
+          finally{await client.end()}
+          NODE
+      - name: Verify owner locking and recovered cutscene persistence
+        run: |
+          node tests/real-pg-choice-proof.mjs
+          node tests/real-pg-prologue-proof.mjs
