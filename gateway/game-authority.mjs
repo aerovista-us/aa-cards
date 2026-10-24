@@ -8,7 +8,7 @@ const deny = (status, code) => { throw new GameRequestError(status, code); };
 const id = x => typeof x === 'string' && x.length > 0 && x.length <= 160 && /^[a-zA-Z0-9:_-]+$/.test(x);
 export function validateChoice(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input) ||
-      !id(input.sessionId) || !id(input.storyletId) || !id(input.choiceId) ||
+      !id(input.sessionId) || !((typeof input.storyletId === 'string') && /^[a-zA-Z0-9:_.-]{1,160}$/.test(input.storyletId)) || !id(input.choiceId) ||
       !Number.isSafeInteger(input.expectedRevision) || input.expectedRevision < 0) deny(422, 'invalid_choice');
   return { sessionId: input.sessionId, storyletId: input.storyletId,
     choiceId: input.choiceId, expectedRevision: input.expectedRevision };
