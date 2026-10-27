@@ -26,30 +26,30 @@ export function createIdentityHandlers({env, sessions}){
         const input=await body(req);
         if(typeof input.code!=='string'||input.code.length>512||!input.code) return json(res,400,{error:'invalid_code'});
         const exchanged=await adapter.auth.exchangeHandoff(input.code);
-        // The exact handoff token response must be validated against the deployed
-        // gateway schema before enabling. Do not guess token field names.
-        if(!env.resolveHandoffToken) return json(res,503,{error:'handoff_mapping_not_verified'});
-        const token=env.resolveHandoffToken(exchanged);
-        if(!token) return json(res,403,{error:'invalid_handoff'});
+        // Canonical App Adapter v0.4 HandoffExchangeResponse contract.
+        // A successful exchange must supply both tokens; no guessed mapping.
+        if(exchanged?.ok!==true || typeof exchanged.sessionToken!=='string' || !exchanged.sessionToken || typeof exchanged.csrfToken!=='string' || !exchanged.csrfToken) return json(res,403,{error:'invalid_handoff'});
+        const token=exchanged.sessionToken;
         const session=await adapter.auth.resolveSession(token);
-        if(!session) return json(res,403,{error:'invalid_session'});
+        if(session?.ok!==true || session?.authenticated!==true || !session.identityId) return json(res,403,{error:'invalid_session'});
         const handle=randomBytes(32).toString('base64url');
         await sessions.put(handle,{token,createdAt:Date.now()}, {ttlSeconds:3600});
-        res.setHeader('Set-Cookie',cookieHeader(SESSION_COOKIE,handle,3600));
+        res.setHeader('Set-Cookie',[cookieHeader(SESSION_COOKIE,handle,3600),cookieHeader(CSRF_COOKIE,exchanged.csrfToken,3600)]);
         return json(res,200,{ok:true});
       }
       if(path==='/api/auth/session'&&req.method==='GET'){
         const stored=sid?await sessions.get(sid):null;
         if(!stored) return json(res,401,{authenticated:false});
         const session=await adapter.auth.resolveSession(stored.token);
-        if(!session) return json(res,401,{authenticated:false});
+        if(session?.ok!==true || session?.authenticated!==true || !session.identityId) return json(res,401,{authenticated:false});
         return json(res,200,{authenticated:true});
       }
       if(path==='/api/auth/logout'&&req.method==='POST'){
         if(req.headers.origin!==env.appOrigin)return json(res,403,{error:'origin_rejected'});
+        if(!safeEqual(req.headers['x-csrf-token'],decodeURIComponent(cookies[CSRF_COOKIE]||'')) || !cookies[CSRF_COOKIE])return json(res,403,{error:'csrf_rejected'});
         const stored=sid?await sessions.get(sid):null;
         if(stored){await adapter.auth.revokeSession(stored.token);await sessions.delete(sid)}
-        res.setHeader('Set-Cookie',cookieHeader(SESSION_COOKIE,'',0));
+        res.setHeader('Set-Cookie',[cookieHeader(SESSION_COOKIE,'',0),cookieHeader(CSRF_COOKIE,'',0)]);
         return json(res,200,{ok:true});
       }
       return json(res,404,{error:'not_found'});
