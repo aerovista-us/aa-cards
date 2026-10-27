@@ -33,7 +33,7 @@ export function createIdentityHandlers({env, sessions}){
         const session=await adapter.auth.resolveSession(token);
         if(session?.ok!==true || session?.authenticated!==true || !session.identityId) return json(res,403,{error:'invalid_session'});
         const handle=randomBytes(32).toString('base64url');
-        await sessions.put(handle,{token,createdAt:Date.now()}, {ttlSeconds:3600});
+        await sessions.put(handle,{token,csrfToken:exchanged.csrfToken,createdAt:Date.now()}, {ttlSeconds:3600});
         res.setHeader('Set-Cookie',[cookieHeader(SESSION_COOKIE,handle,3600),cookieHeader(CSRF_COOKIE,exchanged.csrfToken,3600)]);
         return json(res,200,{ok:true});
       }
@@ -42,12 +42,12 @@ export function createIdentityHandlers({env, sessions}){
         if(!stored) return json(res,401,{authenticated:false});
         const session=await adapter.auth.resolveSession(stored.token);
         if(session?.ok!==true || session?.authenticated!==true || !session.identityId) return json(res,401,{authenticated:false});
-        return json(res,200,{authenticated:true});
+        return json(res,200,{authenticated:true,csrfToken:stored.csrfToken});
       }
       if(path==='/api/auth/logout'&&req.method==='POST'){
         if(req.headers.origin!==env.appOrigin)return json(res,403,{error:'origin_rejected'});
-        if(!safeEqual(req.headers['x-csrf-token'],decodeURIComponent(cookies[CSRF_COOKIE]||'')) || !cookies[CSRF_COOKIE])return json(res,403,{error:'csrf_rejected'});
         const stored=sid?await sessions.get(sid):null;
+        if(!stored?.csrfToken || !safeEqual(req.headers['x-csrf-token'],stored.csrfToken))return json(res,403,{error:'csrf_rejected'});
         if(stored){await adapter.auth.revokeSession(stored.token);await sessions.delete(sid)}
         res.setHeader('Set-Cookie',[cookieHeader(SESSION_COOKIE,'',0),cookieHeader(CSRF_COOKIE,'',0)]);
         return json(res,200,{ok:true});
