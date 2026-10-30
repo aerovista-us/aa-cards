@@ -18,8 +18,8 @@ test('absent task and missing storylet stay blocked',()=>{
 test('earlier outstanding planned desk blocks later planned desk',()=>{
  const prior={id:'desk_a',order:0,planned:true,completed:false};
  const later={id:'desk_b',order:1,planned:true,completed:false};
- const r=readiness({task:later,board:{tasks:[later,prior]},storylet:{id:'desk_b'},conditionOk:()=>true});
- assert.equal(r.ready,false);assert.equal(r.blocker,prior);
+ const r=readiness({task:later,board:{tasks:[later,prior]},storylet:{id:'desk_b'},conditionOk:()=>true,resolveStorylet:id=>({id,label:'First Counter'})});
+ assert.equal(r.ready,false);assert.equal(r.blocker,prior);assert.match(r.reason,/First Counter/);
 });
 test('completed or nonplanned earlier task does not block',()=>{
  const task={id:'b',order:1,planned:true};
