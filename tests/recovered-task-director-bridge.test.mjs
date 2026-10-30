@@ -5,4 +5,5 @@ const state={currentWorld:'AFTERLIFE',flags:{officeOnboardComplete:true},arc:{di
 const base=()=>({state:structuredClone(state),tile:{tags:['office']},library:[{id:'a',label:'A',weight:1,tags:['npc']},{id:'b',label:'B',weight:3,tags:[]}],plannedIds:[],ambientIds:[],readyEchoes:[],priorityIds:[],conditionOk:()=>true,memoryScore:()=>0});
 test('uses real recovered Director.score rather than arbitrary stub',()=>{assert.deepEqual(select(base()).map(s=>s.id),['b','a']);});
 test('planned tasks retain canonical priority over high score',()=>{const c=base();c.plannedIds=['a'];assert.deepEqual(select(c).map(s=>s.id),['a','b']);});
-test('reject missing source condition or memory evaluator',()=>{const c=base();delete c.conditionOk;assert.throws(()=>select(c),/Canonical app condition/);});
+test('defaults to canonical condition and memory evaluators',()=>{const c=base();delete c.conditionOk;delete c.memoryScore;assert.deepEqual(select(c).map(s=>s.id),['b','a']);});
+test('reject invalid condition override',()=>{const c=base();c.conditionOk=null;assert.throws(()=>select(c),/Canonical app condition/);});
