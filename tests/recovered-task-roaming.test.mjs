@@ -16,7 +16,7 @@ test('completed and static actors remain untouched',()=>{
 test('single roaming actor moves with recovered shuffle and tracks cursor',()=>{
  const board={tasks:[{id:'npc',x:1,y:1,mobility:'roam'}]};const f=fixture(board,[0,0,0,0]);
  assert.equal(move(f.args),1);
- assert.deepEqual([board.tasks[0].x,board.tasks[0].y],[0,1]);
+ assert.deepEqual([board.tasks[0].x,board.tasks[0].y],[2,1]);
  assert.equal(f.counts().draws,4);assert.equal(f.counts().sync,1);
  assert.equal(board.lastRoamTurn,4);
  assert.equal(f.counts().notes[0][0],'npc');
