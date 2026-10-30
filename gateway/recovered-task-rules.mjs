@@ -31,7 +31,7 @@ export function recoveredTaskMobility(storylet) {
 }
 // The condition evaluator is supplied by the recovered engine rather than approximated.
 // For a task with unmet prerequisite, return the original's blocked reason.
-export function recoveredTaskReadiness({task,board,storylet,conditionOk}) {
+export function recoveredTaskReadiness({task,board,storylet,conditionOk,resolveStorylet}) {
  if(!task)return {ready:false,reason:'No task signal is active here.'};
  if(!storylet)return {ready:false,reason:'The signal is present, but the file is not readable yet.'};
  if(typeof conditionOk!=='function')throw new TypeError('Canonical condition evaluator required');
@@ -40,7 +40,11 @@ export function recoveredTaskReadiness({task,board,storylet,conditionOk}) {
    .filter(item=>Number(item.order??0)<Number(task.order??0))
    .sort((a,b)=>Number(a.order??0)-Number(b.order??0))[0]
   :null;
- if(earlier)return {ready:false,blocker:earlier,reason:`Complete ${earlier.label||earlier.id} first.`};
+ if(earlier){
+  if(typeof resolveStorylet!=='function')throw new TypeError('Canonical storylet resolver required for planned-order block');
+  const earlierStorylet=resolveStorylet(earlier.id);
+  return {ready:false,blocker:earlier,reason:`Complete ${earlierStorylet?.label||earlier.id} first.`};
+ }
  if(!conditionOk(storylet.when||{}))return {ready:false,reason:'This desk is assigned, but the prerequisite file has not opened yet.'};
  return {ready:true,storylet};
 }
