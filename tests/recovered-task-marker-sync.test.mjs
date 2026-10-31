@@ -1,0 +1,7 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {syncRecoveredTaskMarkers as sync} from '../gateway/recovered-task-marker-sync.mjs';
+const ctx=()=>({currentWorld:'AFTERLIFE',turn:2,flags:{},worldMap:{width:1,height:1,tiles:[{tags:[],spawns:[]}]},storyMemory:{worldTaskBoard:{AFTERLIFE:{tasks:[{id:'desk',x:0,y:0,required:true,completed:false,ticket:'7B'}]}}}});
+const ops={resolveStorylet:id=>({id}),characterForStorylet:()=>({characterKey:'caseworker'}),getPrerequisiteDeskTarget:()=>({x:0,y:0})};
+test('canonical overlay updates after task completion without changing map tiles',()=>{const s=ctx(),tiles=structuredClone(s.worldMap.tiles);sync(s,ops);assert.equal(s.worldMap.taskMarkers[0].completed,false);assert.equal(s.worldMap.taskMarkers[0].characterKey,'caseworker');assert.deepEqual(s.worldMap.prerequisiteTarget,{x:0,y:0});s.storyMemory.worldTaskBoard.AFTERLIFE.tasks[0].completed=true;sync(s,ops);assert.equal(s.worldMap.taskMarkers[0].completed,true);assert.deepEqual(s.worldMap.tiles,tiles);});
+test('map rendering cap preserves first 24 markers',()=>{const s=ctx();s.storyMemory.worldTaskBoard.AFTERLIFE.tasks=Array.from({length:30},(_,i)=>({id:String(i),x:i,y:0}));assert.equal(sync(s,ops).markers.length,24);});
+test('authoritative resolvers and board are mandatory',()=>{assert.throws(()=>sync(ctx(),{}),/Canonical resolveStorylet/);const s=ctx();delete s.storyMemory.worldTaskBoard.AFTERLIFE;assert.throws(()=>sync(s,ops),/Canonical map and board/);});
