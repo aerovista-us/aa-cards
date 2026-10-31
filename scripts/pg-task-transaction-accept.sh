@@ -15,3 +15,16 @@ for _ in $(seq 1 30); do if docker exec "$NAME" pg_isready -U postgres -d ascens
 ((ready)) || exit 1
 docker exec -i "$NAME" psql -q -v ON_ERROR_STOP=1 -U postgres -d ascension_accept <"$ROOT/gateway/migrations/001_player_runs.sql"
 node "$ROOT/scripts/pg-task-transaction-accept.mjs"
+# Restart this disposable database; connect with a fresh Node process.
+docker restart "$NAME" >/dev/null
+ready=0
+for _ in $(seq 1 30); do if docker exec "$NAME" pg_isready -U postgres -d ascension_accept >/dev/null 2>&1; then ready=1; break; fi; sleep 1; done
+((ready)) || exit 1
+# Docker may allocate a new ephemeral published port after a container restart.
+export TEST_PG_PORT="$(docker port "$NAME" 5432/tcp | head -1 | awk -F: '{print $NF}')"
+# pg_isready inside the container does not guarantee the forwarded port is ready.
+for _ in $(seq 1 30); do
+ if (echo >"/dev/tcp/127.0.0.1/$TEST_PG_PORT") >/dev/null 2>&1; then ready=1; break; fi
+ sleep 1
+done
+node "$ROOT/scripts/pg-task-restart-verify.mjs"
