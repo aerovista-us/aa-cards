@@ -53,3 +53,8 @@ Scope: exact checked-out M18 staging branch `feat/canonical-taskboard-turn-m18`,
 - The composition clones state, refuses absent candidates/cells/blocker authority and incomplete placement, and clears *only* the completed `ensureWorldTaskBoard` and `syncTaskMarkers` pending gates. It preserves `drainCutsceneQueue` and cutscene queue intent.
 - Three regression tests cover successful setup and fail-closed missing authority/cells; local repository suite: 176 passing.
 - **Scope limitation:** selection of original source candidate lists, canonical reachable-cell traversal, source RNG cursor checkpoint and original browser state are still not independently proven. The callback-driven bounded helper is not yet connected as an authenticated owner-locked opening transaction. No release gate cleared.
+
+## Continuation — server-owned opening board RNG checkpoint
+- `gateway/recovered-opening-board-rng.mjs` composes bounded opening board setup with `createPersistentRng(saved)`, writes the authoritative updated draw count to the returned cloned state, and rejects caller-supplied RNG overrides.
+- Tests establish deterministic replay, exact draw count for a two-cell shuffle, missing/invalid RNG rejection, and no mutation of caller-owned state on failed board setup. Local suite: **179 passed**.
+- This closes the *bounded composition RNG ownership* gap only. Original independently executed board placement parity, authentic candidate/cell sources, owner-locked opening DB transaction, complete turn/choice orchestration, and AVCC browser remain outstanding. Do not promote.
