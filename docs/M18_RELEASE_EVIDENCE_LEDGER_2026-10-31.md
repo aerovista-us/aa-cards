@@ -41,3 +41,9 @@ Scope: exact checked-out M18 staging branch `feat/canonical-taskboard-turn-m18`,
 - The existing disposable PostgreSQL cutscene fixture now *explicitly* clears the pending setup list solely to test bounded cutscene transaction mechanics; this is **not** proof of actual canonical board setup. It must not be used to claim full playable journey coverage.
 - Verified local repository tests: **169 passed**. Bounded disposable PostgreSQL task and cutscene checks passed, including restart.
 - Remaining release blockers: actual opening board integration, independently captured recovered-vs-modern complete state/map, full end-turn/choice orchestration, AVCC browser acceptance.
+
+## Continuation — recovered prerequisite target selection
+- Added `gateway/recovered-prerequisite-target.mjs` implementing `getPrerequisiteDeskTarget()` ordering from recovered app.js: first blocked-task status with a blocker; otherwise earliest ordered incomplete planned task; otherwise null.
+- Blocks use an explicitly supplied canonical `currentTileBlockedTasks` resolver. Missing/invalid resolver or board raises an error, avoiding guessed target coordinates.
+- Four source-rule unit tests added; total local repository tests: 173 passing.
+- **Not yet integrated into complete board initialization.** The source board candidate selection/placement, original reachable cell shuffle and canonical blocked-task evaluation require real source verification, plus independent full-game parity. Release HOLD.
