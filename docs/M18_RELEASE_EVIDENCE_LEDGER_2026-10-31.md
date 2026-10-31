@@ -47,3 +47,9 @@ Scope: exact checked-out M18 staging branch `feat/canonical-taskboard-turn-m18`,
 - Blocks use an explicitly supplied canonical `currentTileBlockedTasks` resolver. Missing/invalid resolver or board raises an error, avoiding guessed target coordinates.
 - Four source-rule unit tests added; total local repository tests: 173 passing.
 - **Not yet integrated into complete board initialization.** The source board candidate selection/placement, original reachable cell shuffle and canonical blocked-task evaluation require real source verification, plus independent full-game parity. Release HOLD.
+
+## Continuation — bounded opening task-board setup composition
+- Added `gateway/recovered-opening-board-setup.mjs`, composing recovered board identity, board assembly, marker projection and blocked-first prerequisite target for an AFTERLIFE transition with explicit canonical candidates and reachable cells.
+- The composition clones state, refuses absent candidates/cells/blocker authority and incomplete placement, and clears *only* the completed `ensureWorldTaskBoard` and `syncTaskMarkers` pending gates. It preserves `drainCutsceneQueue` and cutscene queue intent.
+- Three regression tests cover successful setup and fail-closed missing authority/cells; local repository suite: 176 passing.
+- **Scope limitation:** selection of original source candidate lists, canonical reachable-cell traversal, source RNG cursor checkpoint and original browser state are still not independently proven. The callback-driven bounded helper is not yet connected as an authenticated owner-locked opening transaction. No release gate cleared.
