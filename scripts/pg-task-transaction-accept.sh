@@ -15,6 +15,7 @@ for _ in $(seq 1 30); do if docker exec "$NAME" pg_isready -U postgres -d ascens
 ((ready)) || exit 1
 docker exec -i "$NAME" psql -q -v ON_ERROR_STOP=1 -U postgres -d ascension_accept <"$ROOT/gateway/migrations/001_player_runs.sql"
 node "$ROOT/scripts/pg-task-transaction-accept.mjs"
+node "$ROOT/scripts/pg-cutscene-journey-accept.mjs"
 # Restart this disposable database; connect with a fresh Node process.
 docker restart "$NAME" >/dev/null
 ready=0

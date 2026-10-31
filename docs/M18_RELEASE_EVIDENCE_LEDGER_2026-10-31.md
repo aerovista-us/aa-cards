@@ -29,3 +29,9 @@ Scope: exact checked-out M18 staging branch `feat/canonical-taskboard-turn-m18`,
 - M18 task-runtime composition no longer permits an injected `syncTaskMarkers` function to replace source-derived task-marker projection. The interface uses `syncRecoveredTaskMarkers` directly with required storylet, character and prerequisite resolvers.
 - A regression test supplies a malicious/incorrect marker override and verifies it is never executed; marker completion still comes from the source-derived projection. This prevents the previously observed test-only tile-marker mutation from masquerading as original behavior.
 - This is a bounded integration safety improvement, **not** independent gameplay parity or an authenticated browser acceptance result.
+
+## Continuation — bounded Earth-to-Afterlife cutscenes on real PostgreSQL
+- `scripts/pg-cutscene-journey-accept.mjs` runs the source-derived Earth→Afterlife transition, drains the first opening scene, then persists all three actual `owner-cutscene-transaction.mjs` continuations through the disposable PG pool.
+- Verifies wrong-owner 404 and wrong-scene 409 rollback on every scene, three ordered revision increments, no additional RNG draws during cutscene acknowledgments, completion flags, and empty final queue.
+- `scripts/pg-task-restart-verify.mjs` now checks those cutscene results from a new Node process after PostgreSQL container restart, in addition to the earlier task-completion checks.
+- Limits: does not prove canonical board setup, choices, end-turn, independent original-browser parity, or AVCC account browser acceptance. Full release gate remains HOLD.
