@@ -58,3 +58,8 @@ Scope: exact checked-out M18 staging branch `feat/canonical-taskboard-turn-m18`,
 - `gateway/recovered-opening-board-rng.mjs` composes bounded opening board setup with `createPersistentRng(saved)`, writes the authoritative updated draw count to the returned cloned state, and rejects caller-supplied RNG overrides.
 - Tests establish deterministic replay, exact draw count for a two-cell shuffle, missing/invalid RNG rejection, and no mutation of caller-owned state on failed board setup. Local suite: **179 passed**.
 - This closes the *bounded composition RNG ownership* gap only. Original independently executed board placement parity, authentic candidate/cell sources, owner-locked opening DB transaction, complete turn/choice orchestration, and AVCC browser remain outstanding. Do not promote.
+
+## Continuation — bounded owner-locked opening-board transaction
+- Added `gateway/owner-opening-board-transaction.mjs`: SQL `FOR UPDATE`, exact revision CAS, owner identity and chapter authorization, canonical board context resolver, fail-closed RNG override policy, transactional board/markers/RNG save and rollback.
+- Three regression tests exercise atomic success, foreign owner/stale revision/denied chapter/missing authority, and duplicate initialization after commit. Total local repository tests **182 passing**.
+- **LIMIT:** these three tests use a mock SQL pool. The existing real disposable PostgreSQL suite exercises bounded task/cutscene transactions, not this new opening-board transaction. A real PG test for this operation, independently captured original-game parity, canonical authoritative candidate/cell resolver, end-turn, and AVCC browser remain pending. Release HOLD.
