@@ -12,6 +12,12 @@ try{
  const initial={seedString:'billy-death',rngDraws:8,currentWorld:'EARTH_PROLOGUE',turn:2,pos:{x:3,y:2},maxActionPoints:3,actionPoints:0,heat:0,flags:{earthPrologueDead:true},unlockedWorlds:['EARTH_PROLOGUE'],storyMemory:{worldTaskBoard:{},pendingEchoes:[]}};
  const transitioned=transitionRecoveredEarthToAfterlife(initial).state;
  const rng=transitioned.rngDraws;
+ // This bounded test exercises cutscene transaction semantics only, not the
+ // canonical board setup. Explicitly remove unfulfilled setup intent from this
+ // synthetic fixture; a genuine opening transaction must resolve it first.
+ const missingSetup=structuredClone(transitioned.pendingCanonicalTasks);
+ assert.deepEqual(missingSetup,['ensureWorldTaskBoard','syncTaskMarkers','drainCutsceneQueue']);
+ transitioned.pendingCanonicalTasks=[];
  assert.equal(drainRecoveredCutsceneQueue(transitioned),'deathWake');
  await pool.query('INSERT INTO ascension_player_runs(id,owner_subject,revision,state) VALUES($1,$2,0,$3::jsonb)',[id,'alice',JSON.stringify(transitioned)]);
  const runtime=createOwnerCutsceneTransaction({pool,authorizeChapter:async()=>true});

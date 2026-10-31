@@ -17,6 +17,10 @@ export function createOwnerCutsceneTransaction({pool,authorizeChapter}){
    if(Number(run.revision)!==input.expectedRevision)throw fail('stale_revision',409);
    if(await authorizeChapter(identity,run.state,input,client)!==true)throw fail('chapter_denied',403);
    const state=structuredClone(run.state);
+   // Opening transition must complete canonical board and marker setup before
+   // cutscene continuation can be authoritative. Do not silently skip it.
+   if(state.pendingCanonicalTasks?.some(task=>['ensureWorldTaskBoard','syncTaskMarkers'].includes(task)))
+    throw fail('opening_setup_pending',409);
    const nextCutscene=continueRecoveredCutscene(state,input.cutsceneKey);
    const saved=await client.query('UPDATE ascension_player_runs SET state=$1::jsonb,revision=revision+1,updated_at=NOW() WHERE id=$2 AND owner_subject=$3 AND revision=$4 RETURNING id,revision,state',[JSON.stringify(state),runId,identity.subject,run.revision]);
    if(saved.rows.length!==1)throw fail('stale_revision',409);

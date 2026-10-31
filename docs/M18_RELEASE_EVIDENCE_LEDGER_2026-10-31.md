@@ -35,3 +35,9 @@ Scope: exact checked-out M18 staging branch `feat/canonical-taskboard-turn-m18`,
 - Verifies wrong-owner 404 and wrong-scene 409 rollback on every scene, three ordered revision increments, no additional RNG draws during cutscene acknowledgments, completion flags, and empty final queue.
 - `scripts/pg-task-restart-verify.mjs` now checks those cutscene results from a new Node process after PostgreSQL container restart, in addition to the earlier task-completion checks.
 - Limits: does not prove canonical board setup, choices, end-turn, independent original-browser parity, or AVCC account browser acceptance. Full release gate remains HOLD.
+
+## Continuation — block cutscene advancement while opening setup is unfinished
+- `owner-cutscene-transaction.mjs` now refuses continuation (`opening_setup_pending`, HTTP 409) when `pendingCanonicalTasks` still contains `ensureWorldTaskBoard` or `syncTaskMarkers`. A regression test verifies no database write/revision advance.
+- The existing disposable PostgreSQL cutscene fixture now *explicitly* clears the pending setup list solely to test bounded cutscene transaction mechanics; this is **not** proof of actual canonical board setup. It must not be used to claim full playable journey coverage.
+- Verified local repository tests: **169 passed**. Bounded disposable PostgreSQL task and cutscene checks passed, including restart.
+- Remaining release blockers: actual opening board integration, independently captured recovered-vs-modern complete state/map, full end-turn/choice orchestration, AVCC browser acceptance.
