@@ -12,7 +12,11 @@ export function verifyIndependentParity(a,b){
   if(typeof a.provenance[key]!=='string'||!a.provenance[key]||a.provenance[key]!==b.provenance[key])throw Error('scenario_mismatch_'+key);
  }
  if(!a.provenance.captureId||!b.provenance.captureId||a.provenance.captureId===b.provenance.captureId)throw Error('nonindependent_captures');
- return diffRecoveredGameState(a.state,b.state);
+ // Original saveRun persists state and map independently; excluding map is a false pass.
+ if(!a.map||!b.map||typeof a.map!=='object'||typeof b.map!=='object')throw Error('separate_saved_map_capture_required');
+ const states=diffRecoveredGameState(a.state,b.state);
+ const maps=diffRecoveredGameState(a.map,b.map);
+ return Object.freeze({equal:states.equal&&maps.equal,differences:[...states.differences.map(x=>({...x,path:'state.'+x.path})),...maps.differences.map(x=>({...x,path:'map.'+x.path}))]});
 }
 if(process.argv[1]&&resolve(process.argv[1])===resolve(new URL(import.meta.url).pathname)){
  try{
