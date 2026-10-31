@@ -20,3 +20,9 @@ test('replay with stale revision cannot change saved state',async()=>{
  await assert.rejects(runtime.completeTask({subject:'alice'},'run',{storyletId:'desk',expectedRevision:0}),e=>e.status===409);
  assert.deepEqual(d.get(),snapshot);
 });
+
+test('injected marker override cannot replace recovered marker authority',async()=>{
+ const d=db();let called=false;const runtime=createBoundedRecoveredTaskRuntime({...config(d.pool),syncTaskMarkers:s=>{called=true;s.worldMap.tiles[0].markersSynced=true;}});
+ await runtime.completeTask({subject:'alice'},'run',{storyletId:'desk',expectedRevision:0});
+ assert.equal(called,false);assert.equal(d.get().state.worldMap.tiles[0].markersSynced,undefined);assert.equal(d.get().state.worldMap.taskMarkers[0].completed,true);
+});

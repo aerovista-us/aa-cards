@@ -24,3 +24,8 @@ Scope: exact checked-out M18 staging branch `feat/canonical-taskboard-turn-m18`,
 
 ## Decision
 **HOLD**. No merge, Pages playable promotion, production application deployment, or changes to live accounts/DB. Continue staging-only integration against recovered source, preserve owner scope. Any later report claiming release readiness must link direct execution evidence for each item above.
+
+## Continuation — canonical marker authority guard
+- M18 task-runtime composition no longer permits an injected `syncTaskMarkers` function to replace source-derived task-marker projection. The interface uses `syncRecoveredTaskMarkers` directly with required storylet, character and prerequisite resolvers.
+- A regression test supplies a malicious/incorrect marker override and verifies it is never executed; marker completion still comes from the source-derived projection. This prevents the previously observed test-only tile-marker mutation from masquerading as original behavior.
+- This is a bounded integration safety improvement, **not** independent gameplay parity or an authenticated browser acceptance result.

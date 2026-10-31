@@ -5,7 +5,7 @@ import {createOwnerTaskCompletionTransaction} from './owner-task-completion-tran
 import {resolveRecoveredTaskCompletionContext} from './recovered-task-completion-context.mjs';
 import {rewardRecoveredOpeningProgress} from './recovered-opening-progress-reward.mjs';
 import {syncRecoveredTaskMarkers} from './recovered-task-marker-sync.mjs';
-export function createBoundedRecoveredTaskRuntime({pool,authorizeChapter,library,currentCellKey,syncTaskMarkers,characterForStorylet,getPrerequisiteDeskTarget,logEvent,noteTurn}){
+export function createBoundedRecoveredTaskRuntime({pool,authorizeChapter,library,currentCellKey,characterForStorylet,getPrerequisiteDeskTarget,logEvent,noteTurn}){
  if(!Array.isArray(library))throw new TypeError('Canonical story library required');
  for(const [name,fn] of Object.entries({currentCellKey,characterForStorylet,getPrerequisiteDeskTarget,logEvent,noteTurn}))
   if(typeof fn!=='function')throw new TypeError('Canonical '+name+' required');
@@ -14,7 +14,7 @@ export function createBoundedRecoveredTaskRuntime({pool,authorizeChapter,library
   resolveCanonicalTaskContext(state){
    return resolveRecoveredTaskCompletionContext(state,{
     library,currentCellKey,
-    syncTaskMarkers: syncTaskMarkers || ((s)=>syncRecoveredTaskMarkers(s,{resolveStorylet:id=>library.find(sl=>sl.id===id)||null,characterForStorylet,getPrerequisiteDeskTarget})),
+    syncTaskMarkers: s=>syncRecoveredTaskMarkers(s,{resolveStorylet:id=>library.find(sl=>sl.id===id)||null,characterForStorylet,getPrerequisiteDeskTarget}),
     rewardOpeningProgress:(s,label)=>rewardRecoveredOpeningProgress(s,label,{logEvent,noteTurn})
    });
   }
