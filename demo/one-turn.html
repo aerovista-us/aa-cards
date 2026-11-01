@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ascension Awaits — Playable One-Turn Demo</title>
+<style>
+:root{color-scheme:dark;font-family:system-ui,sans-serif;background:#090c16;color:#eee7d7}*{box-sizing:border-box}
+body{margin:0;min-height:100dvh;background:radial-gradient(ellipse at 50% -20%,#273c5d,#090c16 65%)}
+button{font:inherit;cursor:pointer;border:1px solid #bb9b64;border-radius:9px;background:#2c405c;color:#fbe7bf;padding:12px 15px}
+button:hover:not(:disabled){background:#456080}button:focus-visible{outline:3px solid #f8d68b;outline-offset:2px}button:disabled{cursor:not-allowed;opacity:.5}
+.wrap{max-width:1100px;margin:auto;padding:18px}.top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px}
+.kicker{letter-spacing:.2em;text-transform:uppercase;color:#e5bd80;font-size:.72rem}
+h1,h2{font-family:Georgia,serif;font-weight:normal}h1{font-size:clamp(2rem,5vw,3.4rem);margin:8px 0}.muted{color:#b2bdd1;font-size:.88rem}
+.layout{display:grid;grid-template-columns:minmax(0,1fr) 275px;gap:16px;margin-top:14px}.panel{background:linear-gradient(150deg,#192741ed,#10192bec);border:1px solid #8594aa55;border-radius:14px;padding:19px;box-shadow:0 20px 45px #0005}
+.scene{min-height:490px;border:1px solid #8f9cb444;border-radius:10px;padding:18px;background:radial-gradient(circle at 48% 24%,#725b4b38,transparent 52%),linear-gradient(140deg,#1c2b42,#101626)}
+.stamp{display:inline-block;border:2px solid #cb8171;color:#e8a494;letter-spacing:.13em;padding:6px 10px;transform:rotate(-3deg);font-size:.7rem}
+.paper{max-width:610px;margin:45px auto 16px;padding:24px;background:#e7d8b8;color:#302d28;border:5px double #95794e;border-radius:7px;box-shadow:0 16px 36px #0007}
+.paper h2{font-size:clamp(1.5rem,4vw,2rem);margin:8px 0 12px}.paper p{line-height:1.65}.paper .kicker{color:#86512f}.choices{display:grid;gap:10px;margin-top:20px}
+.choices button{text-align:left;background:#293a55}.result{padding:12px;background:#fff9e0;border-left:4px solid #8a6945;margin:16px 0}
+.metric{display:flex;justify-content:space-between;border-bottom:1px solid #ffffff28;padding:9px 0}.history{list-style:none;padding:0;margin:12px 0}.history li{font-size:.82rem;padding:8px 0;border-bottom:1px solid #ffffff22;color:#ccd5e2}
+.pill{display:inline-block;padding:5px 9px;background:#394a63;border-radius:5px;color:#e3c591;font-size:.72rem}
+.bottom{display:flex;gap:10px;flex-wrap:wrap;margin-top:15px}.notice{margin:14px 0;padding:12px;border:1px dashed #c49a63aa;border-radius:9px;color:#dbc5a6;font-size:.84rem}
+@media(max-width:760px){.layout{grid-template-columns:1fr}.wrap{padding:10px}.paper{margin:24px auto 8px;padding:16px}.scene{min-height:400px}.panel{padding:12px}}
+</style></head>
+<body><main class="wrap">
+<header class="top"><div><div class="kicker">Department of Posthumous Affairs · Prototype Branch</div><h1>Ascension Awaits</h1><div class="muted">One-turn playable experience · The Afterlife Placement Office</div></div><button id="restartTop">↻ Restart demo</button></header>
+<div class="notice"><strong>Playable concept demo:</strong> one local turn with an intake choice, a deterministic check and visible consequences. This is not connected to the production game, AVCC Identity, or your saved character. No account or payment required.</div>
+<div class="layout">
+<section class="panel"><div class="scene"><span class="stamp" id="stamp">FILE OPEN · 001</span>
+<article class="paper"><div class="kicker" id="chapter">Afterlife Placement Office</div>
+<h2 id="title">Your Number Has Been Called. Probably.</h2>
+<p id="story">Billy wakes beneath fluorescent lights that somehow manage to hum in legalese. The Case Worker slides a yellow packet across the counter. “Welcome to your next chapter. Kindly sign that you've read the chapter before we tell you what it is.”</p>
+<div id="result" aria-live="polite"></div><div class="choices" id="choices"></div>
+</article></div><div class="bottom"><button id="endTurn" disabled>End turn →</button><button id="restartBottom">Restart</button></div></section>
+<aside class="panel"><div class="kicker">Provisional Soul Case File</div><h2 style="margin:8px 0">Billy</h2><span class="pill" id="phase">TURN 1 · INTAKE</span>
+<div class="metric"><span>Action points</span><strong id="ap">3 / 3</strong></div>
+<div class="metric"><span>Case Worker trust</span><strong id="trust">0</strong></div>
+<div class="metric"><span>Glitch</span><strong id="glitch">0</strong></div>
+<div class="metric"><span>Heat</span><strong id="heat">0</strong></div>
+<div class="metric"><span>Pending forms</span><strong id="forms">1</strong></div>
+<h3>Case notes</h3><ul class="history" id="history"><li>Death confirmed. Cause: confidential, including to the deceased.</li></ul>
+<p class="muted">Outcome determined by a reproducible local seed and your selected action. No random rerolls or backend persistence.</p>
+</aside></div></main>
+<script>
+'use strict';
+const $=id=>document.getElementById(id);
+const initial=()=>({stage:0,turn:1,ap:3,trust:0,glitch:0,heat:0,forms:1,history:['Death confirmed. Cause: confidential, including to the deceased.'],choice:null,roll:null});
+let state=initial();
+const options=[
+ {id:'paperwork',name:'Ask to see the paperwork',stat:2,target:8,trust:1,glitch:0,heat:0,success:'The Case Worker hesitates, then produces a second packet titled “Documents We Prefer You Never Request.” Your name is handwritten in three different inks.',failure:'He presents a page labeled FORM NOT FOUND and stamps it in triplicate. A drawer somewhere begins to laugh.'},
+ {id:'rolodex',name:'Question the Afterlife Rolodex',stat:1,target:12,trust:-1,glitch:2,heat:1,success:'The Rolodex spins without anyone touching it. For one impossible second you see a destination before the official placements are offered.',failure:'“That is decorative,” the Case Worker says too quickly. A nearby clock counts backward. Security takes a polite interest.'},
+ {id:'queue',name:'Take a number and wait',stat:4,target:7,trust:1,glitch:0,heat:-1,success:'Your ticket reads 000. The machine quietly changes it to PRIORITY. The Case Worker looks deeply inconvenienced by your patience.',failure:'Your ticket prints “BEFORE YOUR ARRIVAL.” A clerk announces your name and then denies you were ever called.'}
+];
+function rollFor(key){let h=2166136261;for(const c of 'BILLY-001:'+key){h^=c.charCodeAt(0);h=Math.imul(h,16777619);}return (h>>>0)%20+1;}
+function choose(id){if(state.stage!==0)return;const o=options.find(x=>x.id===id);if(!o)return;const roll=rollFor(id),total=roll+o.stat,win=total>=o.target;
+state.ap-=1;state.trust+=o.trust+(win?1:0);state.glitch+=o.glitch;state.heat=Math.max(0,state.heat+o.heat);state.forms=win&&id==='paperwork'?0:1;state.choice=o.id;state.roll=roll;
+state.history.unshift(o.name+' · '+roll+'+'+o.stat+' vs '+o.target+' → '+(win?'success':'setback'));
+state.stage=1;
+$('title').textContent=win?'The Filing System Blinked':'A Routine Bureaucratic Obstacle';
+$('story').textContent=o[win?'success':'failure'];
+$('result').replaceChildren();const box=document.createElement('div');box.className='result';box.textContent='CHECK: d20 '+roll+' + '+o.stat+' = '+total+' vs '+o.target+' · '+(win?'SUCCESS':'SETBACK')+' · 1 AP spent';$('result').append(box);
+render();
+}
+function endTurn(){if(state.stage!==1)return;state.stage=2;state.turn++;state.ap=3;state.history.unshift('Turn 1 filed. The next appointment awaits.');$('stamp').textContent='TURN FILED · 002';$('chapter').textContent='A New Number Is Calling';$('title').textContent='The Office Remembers';$('story').textContent='A bell rings. Your decision is entered into the eternal ledger, the fluorescent lights dim, and a distant voice announces: “Applicant Billy, proceed to your next interaction.” This is the end of the playable one-turn demo.';$('result').replaceChildren();render();}
+function restart(){state=initial();$('stamp').textContent='FILE OPEN · 001';$('chapter').textContent='Afterlife Placement Office';$('title').textContent='Your Number Has Been Called. Probably.';$('story').textContent='Billy wakes beneath fluorescent lights that somehow manage to hum in legalese. The Case Worker slides a yellow packet across the counter. “Welcome to your next chapter. Kindly sign that you\'ve read the chapter before we tell you what it is.”';$('result').replaceChildren();render()}
+function render(){
+ $('ap').textContent=state.ap+' / 3';$('trust').textContent=(state.trust>0?'+':'')+state.trust;$('glitch').textContent=state.glitch;$('heat').textContent=state.heat;$('forms').textContent=state.forms;$('phase').textContent='TURN '+state.turn+' · '+(['INTAKE','DECISION','FILED'][state.stage]);
+ $('choices').replaceChildren();
+ if(state.stage===0)for(const o of options){const b=document.createElement('button');b.textContent=o.name+' · 1 AP';b.addEventListener('click',()=>choose(o.id));$('choices').append(b)}
+ if(state.stage===2){const b=document.createElement('button');b.textContent='Play another outcome ↻';b.addEventListener('click',restart);$('choices').append(b)}
+ $('endTurn').disabled=state.stage!==1;
+ $('history').replaceChildren();for(const note of state.history){const li=document.createElement('li');li.textContent=note;$('history').append(li)}
+}
+$('endTurn').addEventListener('click',endTurn);$('restartTop').addEventListener('click',restart);$('restartBottom').addEventListener('click',restart);render();
+</script></body></html>
