@@ -24,18 +24,18 @@ The current GitHub Pages Cards demo and local import flow remain available witho
 
 ## V4 read-only owner-map gateway (staged; not deployed)
 
-Source now includes \`avcc-map-identity.mjs\`, \`owned-map-session.mjs\`,
-\`map-session-http.mjs\`, \`visible-map-projection.mjs\`, and security/HTTP fixture tests.
+Source now includes `avcc-map-identity.mjs`, `owned-map-session.mjs`,
+`map-session-http.mjs`, `visible-map-projection.mjs`, and security/HTTP fixture tests.
 These are server-only modules. They **do not** mount a public endpoint or enable login.
 
 The eventual app-owned TLS server must inject:
-- A live, deployed and verified App Adapter \`auth.resolveSession\`, \`identity.describe\`,
-  and \`identity.can\` implementation with real server-side protected credentials.
-- A durable \`aa_cards_session\` handle→token session store, with revocation and expiry.
+- A live, deployed and verified App Adapter `auth.resolveSession`, `identity.describe`,
+  and `identity.can` implementation with real server-side protected credentials.
+- A durable `aa_cards_session` handle→token session store, with revocation and expiry.
 - An actual registered AVCC capability (not merely a proposed string).
 - The owner-scoped PostgreSQL pool and an approved visible-marker provider.
 
-The candidate **GET /api/game/map** stays under \`/api\` to receive the existing
-\`Path=/api\` HttpOnly session cookie. The URL **is not live**.
+The candidate **GET /api/game/map** stays under `/api` to receive the existing
+`Path=/api` HttpOnly session cookie. The URL **is not live**.
 Do not expand cookie scope or expose a raw tailnet PostgreSQL service as a shortcut.
-See \`docs/ASCENSION_OWNER_MAP_GATEWAY_2026-11-02.md\` for the full acceptance gates.
+See `docs/ASCENSION_OWNER_MAP_GATEWAY_2026-11-02.md` for the full acceptance gates.
