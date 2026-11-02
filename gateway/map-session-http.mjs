@@ -16,7 +16,7 @@ function writeJson(res,status,payload,extra={}){
   });
   res.end(JSON.stringify(payload));
 }
-export function createMapSessionHttpHandler({service,appOrigin}={}){
+export function createMapSessionHttpHandler({service,appOrigin,uiOrigin=appOrigin}={}){
   if(typeof service?.getMap!=='function')throw new TypeError('Owner-scoped map session service required');
   let url;
   try{url=new URL(appOrigin);}
@@ -24,6 +24,11 @@ export function createMapSessionHttpHandler({service,appOrigin}={}){
   if(url.protocol!=='https:'||url.username||url.password||url.search||url.hash||url.pathname!=='/'||
      url.origin!==appOrigin||!url.hostname)
     throw new TypeError('App origin must be an exact HTTPS origin');
+  const expectedUi=new URL(uiOrigin);
+  if(expectedUi.protocol!=='https:'||expectedUi.origin!==uiOrigin||expectedUi.pathname!=='/'||expectedUi.search||expectedUi.hash)
+    throw new TypeError('Approved exact HTTPS UI origin required');
+  const crossOrigin=uiOrigin!==appOrigin;
+  const trustedCors=crossOrigin?{'Access-Control-Allow-Origin':uiOrigin,'Access-Control-Allow-Credentials':'true','Vary':'Cookie, Origin'}:{};
   // Node's raw incoming Host is checked so a misrouted deployment fails shut.
   // Upstream proxy MUST enforce HTTPS and preserve the approved original Host.
   return async function handleMapSession(req,res){
@@ -32,17 +37,18 @@ export function createMapSessionHttpHandler({service,appOrigin}={}){
     if(req.method!=='GET')return writeJson(res,405,{error:'method_not_allowed'},{Allow:'GET'});
     if(requestUrl.search||requestUrl.hash)return writeJson(res,400,{error:'query_not_supported'});
     if(req.headers.host!==url.host ||
-      (req.headers.origin!==undefined&&req.headers.origin!==appOrigin))
+      (crossOrigin?req.headers.origin!==uiOrigin:
+        (req.headers.origin!==undefined&&req.headers.origin!==appOrigin)))
       return writeJson(res,403,{error:'origin_rejected'});
     try{
       const frame=await service.getMap(req);
-      return writeJson(res,200,frame);
+      return writeJson(res,200,frame,trustedCors);
     }catch(error){
       const status=error instanceof MapSessionError?error.status:503;
       const code=error instanceof MapSessionError?error.code:'map_service_unavailable';
       // No SQL, session token, state, stacktrace or internal exception messages
       // are returned from unrecognized service failures.
-      return writeJson(res,status,{error:code});
+      return writeJson(res,status,{error:code},trustedCors);
     }
   };
 }
