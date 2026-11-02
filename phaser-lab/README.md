@@ -38,6 +38,10 @@ Server-owned sanitized map projection; game gateway authorizes every turn-releva
 Phaser: https://phaser.io / MIT. This lab loads the pinned 4.2.1 release from the official published CDN distribution.
 
 
+## Live bridge diagnostic (V5)
+
+`/phaser-lab/authority/` now has an explicit button that checks `https://ascension-auth.aerovista.us/api/session` using `credentials: 'include'` with exact CORS. The check is **not automatic** and displays no user ID or tokens. A signed-out visitor never requests the map endpoint. The map route still returns HTTP 404 on the deployed bridge; the game remains a synthetic replay, not saved gameplay. See `docs/ASCENSION_AUTH_BRIDGE_RECONCILIATION_2026-11-02.md`.
+
 ## Owner-scoped map read preparation (V4)
 
 A **server-only** PostgreSQL + AVCC identity + projection + HTTP route was staged.
