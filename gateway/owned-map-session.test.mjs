@@ -84,7 +84,7 @@ async function withHttp(service,fn){
  const server=createServer(createMapSessionHttpHandler({service,appOrigin:APP}));
  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
  const port=server.address().port;
- const send=({method='GET',path='/v1/game/map',cookie='aa_cards_session=valid-session',host='ascension-auth.aerovista.us',origin}={})=>
+ const send=({method='GET',path='/api/game/map',cookie='aa_cards_session=valid-session',host='ascension-auth.aerovista.us',origin}={})=>
   new Promise((resolve,reject)=>{
    const req=httpRequest({host:'127.0.0.1',port,method,path,
      headers:{Host:host,...(cookie?{Cookie:cookie}:{}),...(origin?{Origin:origin}:{})}},res=>{
@@ -106,7 +106,7 @@ test('mountable HTTP route supplies no-store JSON; rejects origin, method and qu
    assert.equal((await send({host:'evil.test'})).status,403);
    assert.equal((await send({origin:'https://evil.test'})).status,403);
    assert.equal((await send({method:'POST'})).status,405);
-   assert.equal((await send({path:'/v1/game/map?owner=bob'})).status,400);
+   assert.equal((await send({path:'/api/game/map?owner=bob'})).status,400);
    assert.equal((await send({path:'/v1/game/choices'})).status,404);
    assert.equal((await send({cookie:null})).status,401);
  });
