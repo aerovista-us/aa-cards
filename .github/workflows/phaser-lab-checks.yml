@@ -11,6 +11,10 @@ on:
       - 'gateway/avcc-map-identity.mjs'
       - 'gateway/avcc-map-identity.test.mjs'
       - 'gateway/map-stack-integration.test.mjs'
+      - 'gateway/ascension-bridge-identity.mjs'
+      - 'gateway/ascension-bridge-identity.test.mjs'
+      - 'gateway/ascension-bridge-map-handler.mjs'
+      - 'gateway/ascension-bridge-map-handler.test.mjs'
       - '.github/workflows/phaser-lab-checks.yml'
   push:
     paths:
@@ -23,6 +27,10 @@ on:
       - 'gateway/avcc-map-identity.mjs'
       - 'gateway/avcc-map-identity.test.mjs'
       - 'gateway/map-stack-integration.test.mjs'
+      - 'gateway/ascension-bridge-identity.mjs'
+      - 'gateway/ascension-bridge-identity.test.mjs'
+      - 'gateway/ascension-bridge-map-handler.mjs'
+      - 'gateway/ascension-bridge-map-handler.test.mjs'
       - '.github/workflows/phaser-lab-checks.yml'
 jobs:
   validate:
@@ -48,8 +56,11 @@ jobs:
           node --check gateway/map-session-http.mjs
           node --check gateway/avcc-map-identity.mjs
           node --check phaser-lab/authority/live-map-client.mjs
+          node --check phaser-lab/authority/bridge-status.mjs
+          node --check gateway/ascension-bridge-identity.mjs
+          node --check gateway/ascension-bridge-map-handler.mjs
       - name: Source topology and route tests
-        run: node --test phaser-lab/*.test.mjs phaser-lab/authority/*.test.mjs gateway/visible-map-projection.test.mjs gateway/owned-map-session.test.mjs gateway/avcc-map-identity.test.mjs gateway/map-stack-integration.test.mjs
+        run: node --test phaser-lab/*.test.mjs phaser-lab/authority/*.test.mjs gateway/visible-map-projection.test.mjs gateway/owned-map-session.test.mjs gateway/avcc-map-identity.test.mjs gateway/map-stack-integration.test.mjs gateway/ascension-bridge-identity.test.mjs gateway/ascension-bridge-map-handler.test.mjs
       - name: Verify static route entry
         run: |
           test -s phaser-lab/index.html

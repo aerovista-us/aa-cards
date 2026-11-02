@@ -1,5 +1,6 @@
 import {SAMPLE_SNAPSHOTS} from './sample-snapshots.mjs';
 import {createProjectionPlayback} from './view-contract.mjs';
+import {probeAscensionBridge} from './bridge-status.mjs';
 
 const $=id=>document.getElementById(id);
 const W=900,H=590,C=67,L=147,T=49;
@@ -97,6 +98,23 @@ function connectControls(){
  $('next').addEventListener('click',()=>currentScene?.advance());
  $('restart').addEventListener('click',()=>currentScene?.restart());
 }
+function connectBridgeDiagnostic(){
+ const button=$('bridge-check');
+ const status=$('bridge-result');
+ if(!button||!status)return;
+ button.addEventListener('click',async()=>{
+  button.disabled=true;
+  status.textContent='Checking the deployed authentication bridge…';
+  try{
+   const result=await probeAscensionBridge();
+   // Only display the status summary; never show identity IDs, tokens,
+   // cookies, or an unverified game map in the public recorded viewer.
+   status.textContent=result.detail;
+   status.dataset.state=result.status;
+  }finally{button.disabled=false;}
+ });
+}
+connectBridgeDiagnostic();
 async function loadPhaser(){
  if(window.Phaser)return;
  for(const src of ['https://cdnjs.cloudflare.com/ajax/libs/phaser/4.2.1/phaser.min.js','https://cdn.jsdelivr.net/npm/phaser@4.2.1/dist/phaser.min.js']){

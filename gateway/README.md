@@ -22,6 +22,8 @@ The currently available `@aerovista-us/app-adapter/server` v0.4 source exposes `
 The current GitHub Pages Cards demo and local import flow remain available without login. No private AVCC token or per-user run data belongs in this public repository.
 
 
+**Live bridge correction:** Current `ascension-auth.aerovista.us` uses the native `ascension_avcc_session` cookie (`Path=/`) and `/api/session` endpoint. The V4 opaque-handle example is **not wired to that service**. Use the V5 `ascension-bridge-identity.mjs` and `ascension-bridge-map-handler.mjs` as the unmounted integration seam. See `docs/ASCENSION_AUTH_BRIDGE_RECONCILIATION_2026-11-02.md`.
+
 ## V4 read-only owner-map gateway (staged; not deployed)
 
 Source now includes `avcc-map-identity.mjs`, `owned-map-session.mjs`,

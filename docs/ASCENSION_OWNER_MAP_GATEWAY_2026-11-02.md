@@ -2,6 +2,8 @@
 Date: 2026-11-02
 Status: **source and fixture verification only; NOT DEPLOYED**. Do not enable real player controls.
 
+**Compatibility update (V5):** The deployed Ascension bridge uses `ascension_avcc_session` on `https://ascension-auth.aerovista.us`, not the V4 example `aa_cards_session` cookie. Treat the V4 session-handler code as an alternative, unmounted design. See `docs/ASCENSION_AUTH_BRIDGE_RECONCILIATION_2026-11-02.md` for the verified running contract and corrected cross-origin integration.
+
 ## Why this exists
 The Phaser V3 viewer already accepts `ascension.map-view.v1` but only replays synthetic frames. The existing PostgreSQL read in `owner-run-store.mjs` returns `id,revision,state` without `owner_subject`, while the defensive `projectOwnedVisibleMap` requires a verified owner field. Returning that raw player run in the public response would leak hidden game state.
 

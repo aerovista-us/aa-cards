@@ -65,6 +65,14 @@ footer{margin-top:20px;border-top:1px solid #314457;padding-top:16px;color:#92a3
    </div>
    <div class="sep"></div><small>WORLD: <span id="world">AFTERLIFE</span></small>
   </section>
+  <section class="card" aria-label="Live AVCC bridge diagnostic">
+   <span class="eyebrow">DEPLOYED SERVICE · READ ONLY</span>
+   <h2>Authentication Bridge</h2>
+   <p>Check whether the current website can contact the actual Ascension auth bridge. This does not initiate login or change the game.</p>
+   <button type="button" class="secondary" id="bridge-check">Check connection</button>
+   <p id="bridge-result" role="status" aria-live="polite" data-state="unchecked">Not checked. No account requests are made automatically.</p>
+   <p class="hint">The running bridge is separate from GitHub Pages. The map endpoint is not yet deployed and will remain unavailable until verified.</p>
+  </section>
   <section class="card"><span class="eyebrow">TRUST BOUNDARY</span><h2>Display, Don't Decide</h2>
   <p>Dark cells conceal unrevealed geography. Visible characters and tiles are included only in the public-safe projection.</p>
   <p><strong>Not implemented here:</strong> account login, server-side choice commits, move authorization, NPC consequences, inventory, RNG, and save/resume.</p>
