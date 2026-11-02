@@ -24,8 +24,12 @@ jobs:
           node --check phaser-lab/office-model.mjs
           node --check phaser-lab/office-model.test.mjs
           node --check phaser-lab/boot.test.mjs
+          node --check phaser-lab/authority/main.mjs
+          node --check phaser-lab/authority/view-contract.mjs
+          node --check phaser-lab/authority/sample-snapshots.mjs
+          node --check gateway/visible-map-projection.mjs
       - name: Source topology and route tests
-        run: node --test phaser-lab/*.test.mjs
+        run: node --test phaser-lab/*.test.mjs phaser-lab/authority/*.test.mjs gateway/visible-map-projection.test.mjs
       - name: Verify static route entry
         run: |
           test -s phaser-lab/index.html
@@ -52,6 +56,8 @@ jobs:
         if: always()
         with:
           name: afterlife-office-v2-preview
-          path: phaser-lab/artifacts/office-v2.png
+          path: |
+            phaser-lab/artifacts/office-v2.png
+            phaser-lab/artifacts/authority-projection.png
           if-no-files-found: ignore
           retention-days: 7
