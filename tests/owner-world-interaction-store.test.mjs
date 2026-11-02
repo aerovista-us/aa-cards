@@ -1,0 +1,39 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {createOwnerWorldInteractionStore} from '../gateway/owner-world-interaction-store.mjs';
+// Memory PostgreSQL-shaped fake for structural tests only; real PG acceptance remains separate.
+function fakePool(){
+ let row=null;const calls=[];
+ const client={async query(sql,args=[]){
+  calls.push(sql);
+  if(sql==='BEGIN'||sql==='COMMIT'||sql==='ROLLBACK')return {rows:[]};
+  if(sql.startsWith('INSERT')){if(row)return {rows:[]};row={id:args[0],owner_subject:args[1],revision:0,state:JSON.parse(args[2])};return {rows:[row]};}
+  if(sql.startsWith('SELECT'))return {rows:row&&row.id===args[0]&&(!sql.includes('owner_subject=$2')||row.owner_subject===args[1])?[structuredClone(row)]:[]};
+  if(sql.startsWith('UPDATE')){if(!row||row.id!==args[1]||row.owner_subject!==args[2]||row.revision!==args[3])return {rows:[]};row.state=JSON.parse(args[0]);row.revision++;return {rows:[structuredClone(row)]};}
+  throw Error('unexpected SQL '+sql);
+ },release(){}};
+ return {pool:{connect:async()=>client},calls};
+}
+const alice={subject:'alice'},bob={subject:'bob'};
+test('create → move → load preserves owner state and revision',async()=>{
+ const {pool}=fakePool(),s=createOwnerWorldInteractionStore({pool,authorizeWorld:async()=>true});
+ await s.createRun(alice,'office-1');
+ const moved=await s.commitAction(alice,'office-1',{expectedRevision:0,command:{type:'move',dx:1,dy:0}});
+ assert.equal(moved.revision,1);assert.equal(moved.state.player.x,1);
+ const resumed=await s.loadRun(alice,'office-1');assert.deepEqual(resumed.state,moved.state);
+});
+test('rejects unauthenticated, stale, cross-owner and unauthorized actions',async()=>{
+ const {pool}=fakePool(),s=createOwnerWorldInteractionStore({pool,authorizeWorld:async()=>true});
+ await assert.rejects(s.createRun(null,'office-1'),e=>e.status===401);
+ await s.createRun(alice,'office-1');
+ await assert.rejects(s.loadRun(bob,'office-1'),e=>e.status===404);
+ await assert.rejects(s.commitAction(bob,'office-1',{expectedRevision:0,command:{type:'move',dx:1,dy:0}}),e=>e.status===404);
+ await s.commitAction(alice,'office-1',{expectedRevision:0,command:{type:'move',dx:1,dy:0}});
+ await assert.rejects(s.commitAction(alice,'office-1',{expectedRevision:0,command:{type:'move',dx:1,dy:0}}),e=>e.status===409);
+});
+test('world authorization denies action and no state is updated',async()=>{
+ const {pool}=fakePool();const s=createOwnerWorldInteractionStore({pool,authorizeWorld:async(_id,ctx)=>ctx.type!=='action'});
+ await s.createRun(alice,'office-1');
+ await assert.rejects(s.commitAction(alice,'office-1',{expectedRevision:0,command:{type:'move',dx:1,dy:0}}),e=>e.status===403);
+ assert.equal((await s.loadRun(alice,'office-1')).revision,0);
+});
