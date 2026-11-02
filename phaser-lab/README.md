@@ -41,9 +41,9 @@ Phaser: https://phaser.io / MIT. This lab loads the pinned 4.2.1 release from th
 ## Owner-scoped map read preparation (V4)
 
 A **server-only** PostgreSQL + AVCC identity + projection + HTTP route was staged.
-It proposes \`GET /api/game/map\` under the existing \`Path=/api\` session cookie,
-not a new anonymous gameplay endpoint. \`authority/live-map-client.mjs\`
+It proposes `GET /api/game/map` under the existing `Path=/api` session cookie,
+not a new anonymous gameplay endpoint. `authority/live-map-client.mjs`
 validates that response and uses same-origin credentials and no-store, but it
 is **not activated** by the public Phaser lab or its recorded replay page.
 No production identity session, player save, or action capability is yet connected.
-See \`docs/ASCENSION_OWNER_MAP_GATEWAY_2026-11-02.md\`.
+See `docs/ASCENSION_OWNER_MAP_GATEWAY_2026-11-02.md`.
