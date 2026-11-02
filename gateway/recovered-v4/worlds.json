@@ -1,0 +1,194 @@
+{
+  "defaultWorld": "EARTH_PROLOGUE",
+  "worlds": [
+    {
+      "id": "EARTH_PROLOGUE",
+      "name": "Earth - Construction Site",
+      "tags": [
+        "worksite",
+        "hazard",
+        "rest",
+        "archive",
+        "veil"
+      ],
+      "connections": [
+        "AFTERLIFE"
+      ],
+      "map": {
+        "w": 7,
+        "h": 5,
+        "shape": "worksite",
+        "theme": "construction_site"
+      }
+    },
+    {
+      "id": "VEILWAY",
+      "name": "The Veilway",
+      "tags": [
+        "veil",
+        "clerks",
+        "archive",
+        "hazard",
+        "rest"
+      ],
+      "connections": [
+        "AFTERLIFE",
+        "BLACK_MARKET",
+        "ARCHIVE",
+        "RIFT"
+      ],
+      "map": {
+        "w": 7,
+        "h": 8,
+        "shape": "corridor"
+      }
+    },
+    {
+      "id": "AFTERLIFE",
+      "name": "Afterlife Placement Office",
+      "tags": [
+        "clerks",
+        "rest",
+        "veil",
+        "archive",
+        "hazard"
+      ],
+      "connections": [
+        "VEILWAY",
+        "BLACK_MARKET",
+        "ARCHIVE"
+      ],
+      "map": {
+        "w": 9,
+        "h": 7,
+        "shape": "office",
+        "theme": "intake_office"
+      }
+    },
+    {
+      "id": "BLACK_MARKET",
+      "name": "Afterlife Black Market",
+      "tags": [
+        "market",
+        "hazard",
+        "veil",
+        "archive",
+        "rest"
+      ],
+      "connections": [
+        "VEILWAY",
+        "AFTERLIFE",
+        "ODDWYN",
+        "ARCHIVE"
+      ],
+      "map": {
+        "w": 8,
+        "h": 6,
+        "shape": "market"
+      }
+    },
+    {
+      "id": "ARCHIVE",
+      "name": "Archive of Echoes",
+      "tags": [
+        "archive",
+        "veil",
+        "clerks",
+        "hazard",
+        "rest"
+      ],
+      "connections": [
+        "VEILWAY",
+        "AFTERLIFE",
+        "BLACK_MARKET",
+        "RIFT",
+        "EARTH_ECHO"
+      ],
+      "map": {
+        "w": 7,
+        "h": 8,
+        "shape": "stacks"
+      }
+    },
+    {
+      "id": "EARTH_ECHO",
+      "name": "Earth Memory Echo",
+      "tags": [
+        "archive",
+        "veil",
+        "rest",
+        "hazard"
+      ],
+      "connections": [
+        "ARCHIVE"
+      ],
+      "map": {
+        "w": 6,
+        "h": 6,
+        "shape": "stacks",
+        "theme": "memory_echo"
+      }
+    },
+    {
+      "id": "ODDWYN",
+      "name": "Oddwyn",
+      "tags": [
+        "rest",
+        "veil",
+        "market",
+        "hazard",
+        "archive"
+      ],
+      "connections": [
+        "BLACK_MARKET",
+        "MYSTARA"
+      ],
+      "map": {
+        "w": 8,
+        "h": 7,
+        "shape": "wild"
+      }
+    },
+    {
+      "id": "MYSTARA",
+      "name": "Mystara",
+      "tags": [
+        "rest",
+        "market",
+        "veil",
+        "archive",
+        "hazard"
+      ],
+      "connections": [
+        "ODDWYN",
+        "RIFT"
+      ],
+      "map": {
+        "w": 8,
+        "h": 7,
+        "shape": "meadow"
+      }
+    },
+    {
+      "id": "RIFT",
+      "name": "Rift of Fates",
+      "tags": [
+        "hazard",
+        "archive",
+        "veil",
+        "clerks",
+        "rest"
+      ],
+      "connections": [
+        "VEILWAY",
+        "ARCHIVE",
+        "MYSTARA"
+      ],
+      "map": {
+        "w": 7,
+        "h": 7,
+        "shape": "rift"
+      }
+    }
+  ]
+}
