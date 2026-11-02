@@ -1,0 +1,10 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {placeRecoveredTaskCells as place} from '../gateway/recovered-task-placement.mjs';
+const setup=(candidates,cells)=>{let draws=0;return {candidates,cells,rand:()=>{draws++;return 0;},fixedStation:id=>id==='fixed'?{x:3,y:3}:null,mobility:sl=>sl.mobility||'static',isOfficeIntakeWorld:true,fixtureForCell:(x,y)=>x===1&&y===0?'desk':null,tileTagsAt:(x,y)=>x===2?['echo']:[],inBounds:()=>true,getDraws:()=>draws};};
+test('empty cells neither shuffle nor place',()=>{const a=setup([{id:'a'}],[]);assert.deepEqual(place(a),[]);assert.equal(a.getDraws(),0);});
+test('Fisher-Yates consumes n-1 RNG draws regardless candidate count',()=>{const a=setup([{id:'a'}],[{x:0,y:0},{x:1,y:0},{x:2,y:0}]);assert.equal(place(a).length,1);assert.equal(a.getDraws(),2);});
+test('fixed station overrides shuffled cells',()=>{const a=setup([{id:'fixed'}],[{x:0,y:0},{x:1,y:0}]);assert.deepEqual(place(a)[0].cell,{x:3,y:3});});
+test('desk fixture selected before tile tags',()=>{const a=setup([{id:'desk',mobility:'desk',tileTags:['echo']}],[{x:0,y:0},{x:1,y:0},{x:2,y:0}]);assert.deepEqual(place(a)[0].cell,{x:1,y:0});});
+test('tag preferred and input cell array not mutated',()=>{const cells=[{x:0,y:0},{x:2,y:0}],a=setup([{id:'echo',tileTags:['echo']}],cells);assert.deepEqual(place(a)[0].cell,{x:2,y:0});assert.deepEqual(cells,[{x:0,y:0},{x:2,y:0}]);});
+test('source fallback permits duplicate fixed station placement',()=>{const a=setup([{id:'fixed'},{id:'fixed'}],[{x:0,y:0},{x:1,y:0}]);assert.deepEqual(place(a).map(x=>x.cell),[{x:3,y:3},{x:3,y:3}]);});

@@ -1,0 +1,7 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {appendRecoveredTasks as append} from '../gateway/recovered-task-board-append.mjs';
+const ctx=()=>({board:{tasks:[{id:'old',x:0,y:0,order:0,completed:true}]},storylets:[{id:'new',tags:['npc'],tileTags:['echo']}],cells:[{x:0,y:0},{x:1,y:0},{x:2,y:0}],fixedStation:()=>null,characterForStorylet:()=>({characterKey:'jinx'}),isOfficeIntakeWorld:false,fixtureForCell:()=>null,tileTagsAt:x=>x===2?['echo']:[],inBounds:()=>true});
+test('appended task retains original ordering, occupied cells and metadata',()=>{const c=ctx(),b=append(c);assert.deepEqual([b.tasks[1].x,b.tasks[1].y],[2,0]);assert.equal(b.tasks[1].order,1);assert.equal(b.tasks[1].mobility,'roam');assert.equal(b.tasks[1].characterKey,'jinx');assert.equal(b.tasks[0].completed,true);});
+test('missing available cells skips appended task',()=>{const c=ctx();c.cells=[{x:0,y:0}];assert.equal(append(c).tasks.length,1);});
+test('fixed station may overlap existing location per original behavior',()=>{const c=ctx();c.fixedStation=()=>({x:0,y:0,ticket:'A-2'});assert.equal(append(c).tasks[1].x,0);assert.equal(c.board.tasks[1].ticket,'A-2');});
+test('append keeps index gaps when a storylet cannot be placed',()=>{const c=ctx();c.storylets=[{id:'a'},{id:'b'}];c.cells=[{x:0,y:0},{x:1,y:0}];assert.equal(append(c).tasks.length,2);assert.equal(c.board.tasks[1].order,1);});
