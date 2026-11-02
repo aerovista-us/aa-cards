@@ -13,11 +13,12 @@ This phase introduces a **separate, read-only** SQL → ownership → projection
   \`SELECT id, owner_subject, revision, state FROM ascension_player_runs WHERE owner_subject=$1 ORDER BY updated_at DESC, id DESC LIMIT 1\`.
   It handles PostgreSQL bigint revisions safely. \`projectOwnedVisibleMap\` checks owner again, filters undiscovered map tiles and only includes trusted visible markers. The client cannot select another owner's run.
 - \`gateway/map-session-http.mjs\`: mountable **GET /api/game/map** handler requires an exact HTTPS appOrigin, matching Host and optional Origin, no query-string or other HTTP methods, no CORS headers, no-store/private response headers, and generic errors without SQL or token details.
+  - The route lives under **/api** because the existing identity handler's HttpOnly session cookie has **Path=/api**. A /v1 game route would not receive it, and expanding the cookie's scope is not justified by this staging change.
 - \`phaser-lab/authority/live-map-client.mjs\`: dormant **same-origin only** GET client that validates \`ascension.map-view.v1\`. It is **not imported by GitHub Pages** and cannot auto-connect to NXCore or expose credentials.
 - Tests: AVCC-shaped session/capability fixtures; owner query binding; redaction; revocation; invalid headers, cookies and host; HTTP no-store; no game writes; full composed request with disposable fixture store and PostgreSQL mock; previous Chromium viewer tests unchanged.
 
 ## Source verification versus live verification
-On NXCore's local App Adapter source tree \`/srv/ACOS/_worktrees/identity-grant-scope-v1/packages/aerocore-app-adapter\`:
+From the inspected App Adapter 0.4.x source types (source evidence only; not a live deployment assertion):
 - \`SessionResolveResponse\`: \`{ ok, authenticated, identityId }\`.
 - \`IdentityDescribeResponse\`: \`{ ok, authenticated, identity:{ identityId, status, ... } }\`.
 - \`CapabilityResponse\`: \`{ ok, allowed }\`.
