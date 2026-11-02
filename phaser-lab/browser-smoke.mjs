@@ -74,6 +74,29 @@ try{
   await page.locator('#restart').click();
   await page.waitForFunction(()=>document.querySelector('#revision')?.textContent==='0',{timeout:10000});
   assert.equal(await page.locator('#position').innerText(),'4,4');
+
+  // The bridge check is opt-in and must NOT run during page load or replay.
+  const liveBridgeCalls=[];
+  await page.route('https://ascension-auth.aerovista.us/api/session',route=>{
+    liveBridgeCalls.push({method:route.request().method(),url:route.request().url()});
+    return route.fulfill({
+      status:200,
+      contentType:'application/json',
+      headers:{
+        'Access-Control-Allow-Origin':'http://127.0.0.1:'+port,
+        'Access-Control-Allow-Credentials':'true'
+      },
+      body:JSON.stringify({authenticated:false,identity:null,csrf:null})
+    });
+  });
+  assert.equal(liveBridgeCalls.length,0);
+  assert.equal(await page.locator('#bridge-result').innerText(),
+    'Not checked. No account requests are made automatically.');
+  await page.locator('#bridge-check').click();
+  await page.waitForFunction(()=>document.querySelector('#bridge-result')?.dataset.state==='signed_out',{timeout:10000});
+  assert.match(await page.locator('#bridge-result').innerText(),/No player is signed in/);
+  assert.equal(liveBridgeCalls.length,1);
+  assert.equal(liveBridgeCalls[0].method,'GET');
   assert.deepEqual(actions,[],'A read-only visual recorder cannot request gameplay endpoints');
   assert.deepEqual(errors,[],'No uncaught browser errors should occur');
   console.log('PASS: Afterlife V2 and read-only server-shaped recorded map viewer render, advance, reset and emit no gameplay requests.');
