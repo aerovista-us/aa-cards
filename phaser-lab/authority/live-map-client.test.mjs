@@ -9,7 +9,7 @@ test('only same-origin, no-store authenticated GET; validates sanitized response
    return {ok:true,status:200,headers:{get:()=> 'application/json; charset=utf-8'},
       json:async()=>({...structuredClone(SAMPLE_SNAPSHOTS[0]),secret:'leak me not'})};
  }});
- assert.equal(seen[0],'/v1/game/map');
+ assert.equal(seen[0],'/api/game/map');
  assert.equal(seen[1].method,'GET');
  assert.equal(seen[1].credentials,'same-origin');
  assert.equal(seen[1].cache,'no-store');
