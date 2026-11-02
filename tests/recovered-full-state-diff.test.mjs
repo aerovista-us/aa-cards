@@ -11,3 +11,12 @@ test('reveals RNG, world tile and task mismatches with exact paths',()=>{
 test('detects missing keys rather than treating absence as null',()=>{const a=state(),b=state();delete b.flags;assert.equal(diff(a,b).equal,false);});
 test('detects mismatched ordered arrays even when elements match',()=>{assert.equal(diff({q:[1,2]},{q:[2,1]}).equal,false);});
 test('refuses incomplete comparison arguments',()=>assert.throws(()=>diff({},null),/complete state/));
+
+test('distinguishes absent object key from present undefined',()=>{
+ const result=diff({nested:{value:undefined}},{nested:{}});
+ assert.equal(result.equal,false);assert.equal(result.differences[0].path,'nested.value');assert.equal(result.differences[0].missing,'actual');
+});
+test('distinguishes sparse array slot from explicit undefined',()=>{
+ const result=diff({list:[undefined]},{list:new Array(1)});
+ assert.equal(result.equal,false);assert.equal(result.differences[0].path,'list[0]');
+});
