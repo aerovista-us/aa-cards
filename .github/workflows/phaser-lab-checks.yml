@@ -16,6 +16,7 @@ on:
       - 'gateway/ascension-bridge-map-handler.mjs'
       - 'gateway/ascension-bridge-map-handler.test.mjs'
       - 'gateway/recovered-map-projection-parity.test.mjs'
+      - 'gateway/owned-map-postgres.integration.test.mjs'
       - '.github/workflows/phaser-lab-checks.yml'
   push:
     paths:
@@ -33,6 +34,7 @@ on:
       - 'gateway/ascension-bridge-map-handler.mjs'
       - 'gateway/ascension-bridge-map-handler.test.mjs'
       - 'gateway/recovered-map-projection-parity.test.mjs'
+      - 'gateway/owned-map-postgres.integration.test.mjs'
       - '.github/workflows/phaser-lab-checks.yml'
 jobs:
   validate:
@@ -98,3 +100,37 @@ jobs:
             phaser-lab/artifacts/authority-projection.png
           if-no-files-found: ignore
           retention-days: 7
+
+  postgres-owner-read:
+    name: Disposable PostgreSQL owner-run acceptance
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: read
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: ascension_map_test
+          POSTGRES_USER: ascension_ci
+          POSTGRES_PASSWORD: local-ci-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ascension_ci -d ascension_map_test"
+          --health-interval 3s --health-timeout 3s --health-retries 15
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: "5432"
+      PGDATABASE: ascension_map_test
+      PGUSER: ascension_ci
+      PGPASSWORD: local-ci-only
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install isolated PostgreSQL client
+        run: npm install --no-save --no-package-lock --ignore-scripts pg@8.16.3
+      - name: Run real SQL owner and map projection tests
+        run: node --test gateway/owned-map-postgres.integration.test.mjs
