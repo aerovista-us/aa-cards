@@ -9,7 +9,7 @@ export const OFFICE_WORLD = Object.freeze({
     notice:{x:1,y:0,kind:'inspectable',description:'A notice reads: YOUR NUMBER WILL BE CALLED EVENTUALLY.'}
   },
   npcs:{
-    caseworker:{x:4,y:0,name:'Case Worker',
+    caseworker:{x:4,y:1,name:'Case Worker',
       greeting:'Your file is open. What would you like to know?'}
   }
 });
