@@ -28,7 +28,7 @@ export function createMapSessionHttpHandler({service,appOrigin}={}){
   // Upstream proxy MUST enforce HTTPS and preserve the approved original Host.
   return async function handleMapSession(req,res){
     const requestUrl=new URL(req.url||'/',appOrigin);
-    if(requestUrl.pathname!=='/v1/game/map')return writeJson(res,404,{error:'not_found'});
+    if(requestUrl.pathname!=='/api/game/map')return writeJson(res,404,{error:'not_found'});
     if(req.method!=='GET')return writeJson(res,405,{error:'method_not_allowed'},{Allow:'GET'});
     if(requestUrl.search||requestUrl.hash)return writeJson(res,400,{error:'query_not_supported'});
     if(req.headers.host!==url.host ||
