@@ -12,7 +12,7 @@ This phase introduces a **separate, read-only** SQL → ownership → projection
 - \`gateway/owned-map-session.mjs\`: DB read uses bound owner subject only:
   \`SELECT id, owner_subject, revision, state FROM ascension_player_runs WHERE owner_subject=$1 ORDER BY updated_at DESC, id DESC LIMIT 1\`.
   It handles PostgreSQL bigint revisions safely. \`projectOwnedVisibleMap\` checks owner again, filters undiscovered map tiles and only includes trusted visible markers. The client cannot select another owner's run.
-- \`gateway/map-session-http.mjs\`: mountable **GET /v1/game/map** handler requires an exact HTTPS appOrigin, matching Host and optional Origin, no query-string or other HTTP methods, no CORS headers, no-store/private response headers, and generic errors without SQL or token details.
+- \`gateway/map-session-http.mjs\`: mountable **GET /api/game/map** handler requires an exact HTTPS appOrigin, matching Host and optional Origin, no query-string or other HTTP methods, no CORS headers, no-store/private response headers, and generic errors without SQL or token details.
 - \`phaser-lab/authority/live-map-client.mjs\`: dormant **same-origin only** GET client that validates \`ascension.map-view.v1\`. It is **not imported by GitHub Pages** and cannot auto-connect to NXCore or expose credentials.
 - Tests: AVCC-shaped session/capability fixtures; owner query binding; redaction; revocation; invalid headers, cookies and host; HTTP no-store; no game writes; full composed request with disposable fixture store and PostgreSQL mock; previous Chromium viewer tests unchanged.
 
@@ -29,7 +29,7 @@ The future app-owned **TLS-terminated, exact-host** server should:
 2. Construct the **server** App Adapter with protected service credentials (never GitHub Pages/browser assets), and a durable handle→token session store.
 3. **Explicitly configure a real registered capability** (do not simply invent \`ascension.game.play\`); use \`createAvccMapIdentity({adapter,sessions,capability})\`.
 4. Use \`createOwnedMapSession({pool, ...identityResolvers, listVisibleMarkers})\`. Marker provider MUST be server-approved and already filtered for visibility. Pass \`async()=>[]\` until source-derived visible markers are verified.
-5. Mount \`createMapSessionHttpHandler({service,appOrigin})\` on \`GET /v1/game/map\` only, with TLS, exact hostname preservation, durable sessions, per-account rate limits and audit logging at the trusted server boundary. There must be **no public tailnet or database endpoint**.
+5. Mount \`createMapSessionHttpHandler({service,appOrigin})\` on \`GET /api/game/map\` only, with TLS, exact hostname preservation, durable sessions, per-account rate limits and audit logging at the trusted server boundary. There must be **no public tailnet or database endpoint**.
 6. Confirm a restored production-equivalent PostgreSQL schema and run format with an **isolated disposable database** before connecting any real data.
 7. Test login→map read→logout→401, capability deny→403, cross-user run→404, absent run→404, revoked/expired session→401, invalid/hidden marker redaction, malformed state→503, rate limiting and no private fields in HTTP body. Retain a deterministic revision across reload.
 8. Only after real browser acceptance, update the Phaser viewer to use \`fetchOwnedMap\` in an **authenticated app-owned origin** and keep current Pages demos separate.
