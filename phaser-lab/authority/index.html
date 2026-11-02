@@ -1,0 +1,75 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#08121f"><link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<title>Ascension Awaits — Read-only State Projection Lab</title>
+<meta name="description" content="Synthetic server-shaped map replay for Ascension Awaits. This is not a live game.">
+<style>
+:root{font-family:system-ui,-apple-system,'Segoe UI',sans-serif;color:#eee0c7;background:#070d17}
+*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(ellipse at top,#20384c,#07101b 68%);line-height:1.55}
+a{color:#e8c78d}button{font:inherit}
+main{max-width:1240px;padding:clamp(12px,3vw,35px);margin:auto}
+.eyebrow{font:700 11px ui-monospace,monospace;letter-spacing:.15em;color:#daba76}
+h1{font:normal clamp(34px,5vw,57px)/1.1 Georgia,serif;margin:10px 0 12px}
+h2{font:normal 26px Georgia,serif;margin:8px 0 12px}
+p{color:#adbccc;margin:9px 0}
+a:focus-visible,button:focus-visible{outline:2px solid #8fe5eb;outline-offset:3px}
+.top{display:flex;justify-content:space-between;align-items:flex-start;gap:15px;flex-wrap:wrap;margin-bottom:23px}
+.top p{max-width:760px}.nav{display:flex;gap:15px;font-size:13px;flex-wrap:wrap}
+.notice{border:1px solid #7a744f;border-left:4px solid #dabe7f;background:#1b2532;padding:13px 17px;border-radius:8px;margin:16px 0 20px}
+.notice strong{color:#eed09b}.layout{display:grid;grid-template-columns:minmax(0,1fr) 290px;gap:18px}
+.stage,.card{background:#101d2b;border:1px solid #3a5164;border-radius:16px;padding:15px}
+.frame{position:relative;aspect-ratio:900/590;display:grid;place-items:center;border:1px solid #53677c;border-radius:10px;overflow:hidden;background:#08121f}
+.frame canvas{display:block!important;max-width:100%;max-height:100%}
+#loading{position:absolute;inset:0;z-index:4;display:grid;place-items:center;text-align:center;padding:25px;background:#0d1b2d;color:#edce96}
+#loading.failure{color:#fac0a6}
+.row{display:flex;justify-content:space-between;gap:15px;flex-wrap:wrap;align-items:center}
+.controls{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}
+button{cursor:pointer;padding:10px 15px;border-radius:9px;border:1px solid #9e8c70;color:#1b2633;background:#ead09e;font-weight:700}
+button.secondary{color:#e2d9c6;background:#1f3042;border-color:#647585}
+button:disabled{opacity:.48;cursor:not-allowed}
+small,.hint{font:12px/1.6 ui-monospace,monospace;color:#98acc0}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.stat{padding:12px;background:#192e3e;border-radius:8px;border:1px solid #395066}
+.stat span{display:block;font:700 11px ui-monospace,monospace;color:#a8bccc;margin-bottom:7px}
+.stat b{font:normal 23px Georgia,serif;color:#f3dcae}
+.sidebar{display:grid;gap:13px;align-content:start}.card p{font-size:13px}
+.sep{height:1px;background:#344a5d;margin:15px 0}
+footer{margin-top:20px;border-top:1px solid #314457;padding-top:16px;color:#92a3b8;font-size:12px}
+@media(max-width:940px){.layout{grid-template-columns:1fr}.sidebar{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:600px){.sidebar{grid-template-columns:1fr}.stats{grid-template-columns:repeat(3,minmax(0,1fr))}.stat{padding:8px}.stat b{font-size:18px}}
+</style></head><body><main>
+<header class="top">
+ <div><div class="eyebrow">ASCENSION AWAITS · ENGINE INTEGRATION TEST</div><h1>Authority Projection Lab</h1>
+ <p>Watch Billy's position and revealed tiles update from a sequence of already-committed, server-shaped map snapshots. The renderer does not decide moves, turns, rolls, or interactions.</p></div>
+ <nav class="nav" aria-label="Other Ascension previews"><a href="../">← Back to playable visual lab</a><a href="../../demo/">Original story demo</a></nav>
+</header>
+<div class="notice"><strong>Recorded simulation, not live gameplay.</strong> All snapshots here are synthetic and have no account owner, authenticated session, real game progression or durable save. This test validates only the <em>sanitized read-only presentation contract</em>.</div>
+<div class="layout">
+ <section class="stage">
+  <div class="row"><span class="eyebrow">AFTERLIFE / PLACEMENT OFFICE</span><small>RECORDED FRAME <span id="frame">1 / 6</span></small></div>
+  <div id="game" class="frame"><div id="loading">Initializing Phaser renderer…</div></div>
+  <div class="controls">
+   <button id="next" type="button">Advance recorded snapshot</button>
+   <button id="restart" class="secondary" type="button">Replay from beginning</button>
+  </div>
+  <p id="status" role="status" aria-live="polite">Reading first projection.</p>
+ </section>
+ <aside class="sidebar">
+  <section class="card">
+   <span class="eyebrow">SERVER-SHAPED READOUT</span><h2>Presentation State</h2>
+   <div class="stats">
+    <div class="stat"><span>REVISION</span><b id="revision">0</b></div>
+    <div class="stat"><span>TURN</span><b id="turn">0</b></div>
+    <div class="stat"><span>PLAYER TILE</span><b id="position">4,4</b></div>
+    <div class="stat"><span>DISCOVERED</span><b id="revealed">0 / 63</b></div>
+   </div>
+   <div class="sep"></div><small>WORLD: <span id="world">AFTERLIFE</span></small>
+  </section>
+  <section class="card"><span class="eyebrow">TRUST BOUNDARY</span><h2>Display, Don't Decide</h2>
+  <p>Dark cells conceal unrevealed geography. Visible characters and tiles are included only in the public-safe projection.</p>
+  <p><strong>Not implemented here:</strong> account login, server-side choice commits, move authorization, NPC consequences, inventory, RNG, and save/resume.</p>
+  <p class="hint">The buttons advance a locally recorded sample — they never POST a gameplay action.</p></section>
+ </aside>
+</div>
+<footer>SkyForge Creative Studios · AeroVista · Phaser 4.2.1 · Authority display proof only</footer>
+</main><script type="module" src="./main.mjs"></script></body></html>

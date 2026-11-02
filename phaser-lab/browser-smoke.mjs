@@ -8,7 +8,8 @@ const root=path.resolve('phaser-lab');
 const mime={'.html':'text/html; charset=utf-8','.mjs':'text/javascript; charset=utf-8','.svg':'image/svg+xml'};
 const server=createServer(async(req,res)=>{
   try{
-    const name=decodeURIComponent(new URL(req.url,'http://127.0.0.1').pathname).replace(/^\/phaser-lab\/?/,'')||'index.html';
+    const pathName=decodeURIComponent(new URL(req.url,'http://127.0.0.1').pathname).replace(/^\/phaser-lab\/?/,'');
+    const name=pathName ? (pathName.endsWith('/')?pathName+'index.html':pathName) : 'index.html';
     if(name.includes('..')||name.includes('\\')){res.writeHead(403).end();return;}
     const file=path.join(root,name);
     const buf=await readFile(file);
@@ -54,8 +55,28 @@ try{
   assert.equal(await page.locator('#task-caseworker').getAttribute('data-complete'),'false');
   const favicon=await page.request.get('http://127.0.0.1:'+port+'/phaser-lab/favicon.svg');
   assert.equal(favicon.status(),200);
+  // The separate integration preview must only replay display snapshots;
+  // it is not a save/choice endpoint and must never send a gameplay request.
+  const actions=[];
+  page.on('request',request=>{if(/\/v1\/game\//.test(request.url()))actions.push(request.url());});
+  const authorityResponse=await page.goto('http://127.0.0.1:'+port+'/phaser-lab/authority/',{waitUntil:'domcontentloaded'});
+  assert.equal(authorityResponse.status(),200);
+  await page.waitForFunction(()=>document.querySelector('#loading')?.hidden===true&&!!document.querySelector('#game canvas'),{timeout:45000});
+  assert.equal(await page.locator('#revision').innerText(),'0');
+  assert.equal(await page.locator('#position').innerText(),'4,4');
+  await page.locator('#next').click();
+  await page.waitForFunction(()=>document.querySelector('#revision')?.textContent==='1',{timeout:10000});
+  assert.equal(await page.locator('#position').innerText(),'4,3');
+  await page.locator('#next').click();
+  await page.waitForFunction(()=>document.querySelector('#revision')?.textContent==='2',{timeout:10000});
+  assert.equal(await page.locator('#position').innerText(),'4,2');
+  await page.screenshot({path:'phaser-lab/artifacts/authority-projection.png',fullPage:true});
+  await page.locator('#restart').click();
+  await page.waitForFunction(()=>document.querySelector('#revision')?.textContent==='0',{timeout:10000});
+  assert.equal(await page.locator('#position').innerText(),'4,4');
+  assert.deepEqual(actions,[],'A read-only visual recorder cannot request gameplay endpoints');
   assert.deepEqual(errors,[],'No uncaught browser errors should occur');
-  console.log('PASS: Afterlife V2 renders, D-pad moves, dialogue branches, objective state resets, ambient motion toggles, and favicon loads.');
+  console.log('PASS: Afterlife V2 and read-only server-shaped recorded map viewer render, advance, reset and emit no gameplay requests.');
 }catch(e){
   console.error('Browser smoke failure:',String(e));
   throw e;
