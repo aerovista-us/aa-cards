@@ -23,8 +23,9 @@ jobs:
           node --check phaser-lab/game.mjs
           node --check phaser-lab/office-model.mjs
           node --check phaser-lab/office-model.test.mjs
+          node --check phaser-lab/boot.test.mjs
       - name: Source topology and route tests
-        run: node --test phaser-lab/office-model.test.mjs
+        run: node --test phaser-lab/*.test.mjs
       - name: Verify static route entry
         run: |
           test -s phaser-lab/index.html
