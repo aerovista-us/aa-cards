@@ -3,10 +3,14 @@ on:
   pull_request:
     paths:
       - 'phaser-lab/**'
+      - 'gateway/visible-map-projection.mjs'
+      - 'gateway/visible-map-projection.test.mjs'
       - '.github/workflows/phaser-lab-checks.yml'
   push:
     paths:
       - 'phaser-lab/**'
+      - 'gateway/visible-map-projection.mjs'
+      - 'gateway/visible-map-projection.test.mjs'
       - '.github/workflows/phaser-lab-checks.yml'
 jobs:
   validate:
