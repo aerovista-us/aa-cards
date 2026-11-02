@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createServer} from 'node:http';
+import {createServer,request as httpRequest} from 'node:http';
 import {createPreparedBridgeMapHandler,AUTH_ORIGIN,UI_ORIGIN} from './ascension-bridge-map-handler.mjs';
 import {cellEnabled} from '../phaser-lab/office-model.mjs';
 
@@ -39,27 +39,36 @@ test('real-bridge-shaped request validates native token, capability, SQL owner a
  const {handler,events}=build();
  const server=createServer(handler);
  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));
- const url='http://127.0.0.1:'+server.address().port;
+ const port=server.address().port;
+ const send=({method='GET',path='/api/game/map',headers={}}={})=>new Promise((resolve,reject)=>{
+  const req=httpRequest({host:'127.0.0.1',port,method,path,headers:{
+   Host:new URL(AUTH_ORIGIN).host,Origin:UI_ORIGIN,Cookie:'ascension_avcc_session=native-1',
+   ...headers
+  }},res=>{
+   let body='';res.on('data',x=>body+=x);
+   res.on('end',()=>resolve({status:res.statusCode,headers:res.headers,body:JSON.parse(body)}));
+  });
+  req.on('error',reject);req.end();
+ });
  try{
-  const headers={Host:new URL(AUTH_ORIGIN).host,Origin:UI_ORIGIN,Cookie:'ascension_avcc_session=native-1'};
-  const good=await fetch(url+'/api/game/map',{headers});
-  assert.equal(good.status,200);
-  assert.equal(good.headers.get('access-control-allow-origin'),UI_ORIGIN);
-  assert.equal(good.headers.get('access-control-allow-credentials'),'true');
-  const body=await good.json();
+  const good=await send();
+  assert.equal(good.status,200,JSON.stringify(good.body));
+  assert.equal(good.headers['access-control-allow-origin'],UI_ORIGIN);
+  assert.equal(good.headers['access-control-allow-credentials'],'true');
+  const body=good.body;
   assert.equal(body.schema,'ascension.map-view.v1');
   assert.equal(body.revision,1);
   assert.equal(JSON.stringify(body).includes('never-ship'),false);
   assert.deepEqual(events,['resolve','describe','can','postgres']);
   const n=events.length;
-  const evil=await fetch(url+'/api/game/map',{headers:{...headers,Origin:'https://evil.example'}});
+  const evil=await send({headers:{Origin:'https://evil.example'}});
   assert.equal(evil.status,403);
-  assert.equal(evil.headers.get('access-control-allow-origin'),null);
-  const absent=await fetch(url+'/api/game/map',{headers:{Host:new URL(AUTH_ORIGIN).host}});
+  assert.equal(evil.headers['access-control-allow-origin'],undefined);
+  const absent=await send({headers:{Origin:''}});
   assert.equal(absent.status,403);
-  const other=await fetch(url+'/api/game/map?run=other',{headers});
+  const other=await send({path:'/api/game/map?run=other'});
   assert.equal(other.status,400);
-  const posted=await fetch(url+'/api/game/map',{method:'POST',headers});
+  const posted=await send({method:'POST'});
   assert.equal(posted.status,405);
   assert.equal(events.length,n,'denied origin, query or POST must never touch AVCC or database');
  }finally{await new Promise(resolve=>server.close(resolve))}
