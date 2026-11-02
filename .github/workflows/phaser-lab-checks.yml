@@ -8,6 +8,9 @@ on:
       - 'gateway/owned-map-session.mjs'
       - 'gateway/owned-map-session.test.mjs'
       - 'gateway/map-session-http.mjs'
+      - 'gateway/avcc-map-identity.mjs'
+      - 'gateway/avcc-map-identity.test.mjs'
+      - 'gateway/map-stack-integration.test.mjs'
       - '.github/workflows/phaser-lab-checks.yml'
   push:
     paths:
@@ -17,6 +20,9 @@ on:
       - 'gateway/owned-map-session.mjs'
       - 'gateway/owned-map-session.test.mjs'
       - 'gateway/map-session-http.mjs'
+      - 'gateway/avcc-map-identity.mjs'
+      - 'gateway/avcc-map-identity.test.mjs'
+      - 'gateway/map-stack-integration.test.mjs'
       - '.github/workflows/phaser-lab-checks.yml'
 jobs:
   validate:
@@ -40,6 +46,7 @@ jobs:
           node --check gateway/visible-map-projection.mjs
           node --check gateway/owned-map-session.mjs
           node --check gateway/map-session-http.mjs
+          node --check gateway/avcc-map-identity.mjs
           node --check phaser-lab/authority/live-map-client.mjs
       - name: Source topology and route tests
         run: node --test phaser-lab/*.test.mjs phaser-lab/authority/*.test.mjs gateway/visible-map-projection.test.mjs gateway/owned-map-session.test.mjs
