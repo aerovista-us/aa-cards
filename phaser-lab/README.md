@@ -5,10 +5,18 @@ Independent **visual-only experiment**, not an authenticated or save-capable gam
 ## Purpose
 Render the source-derived AFTERLIFE office (9×7) using Phaser 4.2.1, with animated Billy, keyboard and pointer/touch movement, interactions, accessible story-card overlays, and a mobile D-pad. The map is derived from the recovered v4 office world profile and is **not** the canonical runtime state. Local interactions are scripted samples; no player runs, choices, stats or account data are read or written.
 
+## Visual presentation pass (V2)
+- Draws service cabinets, queue rails, brass counters, file piles, and animated overhead queue display with original in-engine shapes; no externally licensed artwork.
+- Adds **ambient** moving clerk (not a canonical NPC), small directional walk animation and feet motion for Billy, and a reduced-motion preference control.
+- Adds an explicit first-scene objective list tracking **local-only** story sample progress.
+- The office geometry and five sample stations are unchanged. No saved progression, NPC memory, RNG, or server authority is changed.
+- Real-browser smoke checks interaction, scene boot, motion control, and objectives.
+
 ## Files
 - index.html — responsive playground UI and CDN loader.
 - office-model.mjs — source-geometry projection + bounded BFS movement, no game authority.
 - game.mjs — Phaser rendering, input, animation and independent sample interaction UI.
+- visuals.mjs — ambient scenery and decorative clerk with no collision/state authority.
 - office-model.test.mjs — topology/path assertions.
 
 ## Local preview
