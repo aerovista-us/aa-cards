@@ -25,3 +25,21 @@ The canonical Ascension v4 Director/State server remains authoritative. The exis
 
 ## Deploy
 This repository's `main` is GitHub Pages source. The static demo/importer should remain unchanged until authenticated runtime acceptance is completed.
+
+
+## Staged read-only Phaser map contract (2026-11-02; not deployed)
+
+\`GET /api/game/map\` is a **separate, proposed, read-only endpoint**, not a
+replacement for the full \`GET /v1/game/session\` and \`POST /v1/game/choices\`
+draft contracts above. Its \`ascension.map-view.v1\` shape contains only
+authorized discovered tiles, walkable flags, current position, revision, turn,
+world ID, and approved visible markers. No private saved-state fields are sent.
+
+The existing identity cookie has \`Path=/api\`, so this proposed route deliberately
+remains within \`/api\`. The implementation is staged in \`gateway/\` and uses a
+server-only AVCC session/grant resolver and owner-bound database query. It remains
+unmounted until actual App Adapter registration, session, grants, database,
+origin/TLS and real browser acceptance are proven.
+
+\`phaser-lab/authority/live-map-client.mjs\` is a **dormant** same-origin client.
+The publicly accessible Phaser laboratory still uses synthetic recorded frames.
