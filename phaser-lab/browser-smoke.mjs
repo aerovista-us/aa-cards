@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {createServer} from 'node:http';
-import {readFile} from 'node:fs/promises';
+import {readFile,mkdir} from 'node:fs/promises';
 import path from 'node:path';
 import {chromium} from 'playwright';
 
@@ -28,6 +28,8 @@ try{
   await page.waitForFunction(()=>document.querySelector('#loading')?.hidden===true&&!!document.querySelector('#game canvas'),{timeout:45000});
   assert.equal(await page.locator('#game canvas').count(),1,'Phaser must render a canvas');
   assert.equal(await page.locator('#steps').innerText(),'0');
+  assert.equal(await page.locator('#objective-summary').innerText(),'0 / 4 resolved');
+  assert.equal(await page.locator('#motion-toggle').getAttribute('aria-pressed'),'true');
 
   // Keyboard/touch-equivalent control moves vertically, and after another
   // step Billy should trigger the Case Worker dialogue station.
@@ -36,12 +38,24 @@ try{
   await page.locator('[data-move="up"]').click();
   await page.waitForFunction(()=>document.querySelector('#story-panel')?.hidden===false,{timeout:10000});
   assert.match(await page.locator('#panel-title').innerText(),/expecting you/i);
-  await page.locator('#close-panel').click();
+  await page.getByRole('button',{name:'Ask for authorized placements'}).click();
   assert.equal(await page.locator('#story-panel').evaluate(e=>e.hidden),true);
+  assert.equal(await page.locator('#task-caseworker').getAttribute('data-complete'),'true');
+  assert.equal(await page.locator('#objective-summary').innerText(),'1 / 4 resolved');
+  await mkdir('phaser-lab/artifacts',{recursive:true});
+  await page.screenshot({path:'phaser-lab/artifacts/office-v2.png',fullPage:true});
+  await page.locator('#motion-toggle').click();
+  assert.equal(await page.locator('#motion-toggle').getAttribute('aria-pressed'),'false');
+  await page.locator('#motion-toggle').click();
+  assert.equal(await page.locator('#motion-toggle').getAttribute('aria-pressed'),'true');
+  await page.locator('#reset').click();
+  assert.equal(await page.locator('#steps').innerText(),'0');
+  assert.equal(await page.locator('#objective-summary').innerText(),'0 / 4 resolved');
+  assert.equal(await page.locator('#task-caseworker').getAttribute('data-complete'),'false');
   const favicon=await page.request.get('http://127.0.0.1:'+port+'/phaser-lab/favicon.svg');
   assert.equal(favicon.status(),200);
   assert.deepEqual(errors,[],'No uncaught browser errors should occur');
-  console.log('PASS: Phaser loads and renders; D-pad movement, Case Worker dialogue, and favicon work.');
+  console.log('PASS: Afterlife V2 renders, D-pad moves, dialogue branches, objective state resets, ambient motion toggles, and favicon loads.');
 }catch(e){
   console.error('Browser smoke failure:',String(e));
   throw e;
