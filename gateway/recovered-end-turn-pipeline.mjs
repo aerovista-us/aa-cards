@@ -9,6 +9,8 @@ export function simulateRecoveredEndTurn(saved,{ui={},inBounds,syncTaskMarkers,n
  if(recoveredEndTurnGate(ui).allowed!==true)throw Object.assign(new Error('turn_blocked'),{status:422});
  if(typeof inBounds!=='function'||typeof syncTaskMarkers!=='function'||typeof noteTurn!=='function')
   throw new TypeError('Canonical map bounds, marker and note handlers required');
+ if(saved?.activeCutsceneKey || (Array.isArray(saved?.pendingCutsceneQueue)&&saved.pendingCutsceneQueue.length>0) || (Array.isArray(saved?.pendingCanonicalTasks)&&saved.pendingCanonicalTasks.length>0))
+  throw Object.assign(new Error('pending_canonical_sequence'),{status:409});
  if(!saved?.worldMap||!Array.isArray(saved.worldMap.tiles)||!saved.storyMemory?.worldTaskBoard)
   throw new TypeError('Canonical world and task board required');
  const state=structuredClone(saved);
