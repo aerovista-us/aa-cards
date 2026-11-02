@@ -14,6 +14,12 @@ try{
  const cut=(await pool.query('SELECT revision,state FROM ascension_player_runs WHERE id=$1 AND owner_subject=$2',['m18-cutscenes','alice'])).rows[0];
  assert.equal(Number(cut.revision),3);assert.equal(cut.state.currentWorld,'AFTERLIFE');assert.equal(cut.state.activeCutsceneKey,null);assert.deepEqual(cut.state.pendingCutsceneQueue,[]);
  assert.equal(cut.state.flags.earthPrologueComplete,true);
+ const board=(await pool.query('SELECT revision,state FROM ascension_player_runs WHERE id=$1 AND owner_subject=$2',['m18-opening-board-accept','alice'])).rows[0];
+ assert.equal(Number(board.revision),1);
+ assert.equal(board.state.rngDraws,7);
+ assert.equal(board.state.worldMap.taskMarkers.length,1);
+ assert.deepEqual(board.state.pendingCanonicalTasks,['drainCutsceneQueue']);
+ console.log('PASS: owner-locked opening board, task markers and RNG persisted across PG restart');
  console.log('PASS: bounded cutscene completion also survives PostgreSQL restart');
  console.log('PASS: new Node process and new PG connection loaded unchanged committed task/reward/marker/RNG state after DB restart');
 }finally{await pool.end()}
