@@ -120,6 +120,9 @@ function createAfterlifeSceneClass(){
   this.environment=decorateOffice(this,{at:position,cell:CELL,reduceMotion:!state.motionEnabled});
   this.drawFixtures();
   this.drawBilly();
+  const motionControl=$('motion-toggle');
+  motionControl?.setAttribute?.('aria-pressed',String(state.motionEnabled));
+  if(motionControl)motionControl.textContent=state.motionEnabled?'Motion: On':'Motion: Off';
   this.input.on('pointerdown',(pointer,targets)=>{
    if(modal)return;
    if(targets&&targets.length&&targets.some(x=>x.getData&&x.getData('interactive-fixture')))return;
@@ -159,8 +162,8 @@ function createAfterlifeSceneClass(){
    }
   }
   const pos=position(4,0);
-  this.add.text(pos.x,pos.y-7,'DEPARTMENT OF',{fontFamily:'monospace',fontSize:'11px',color:'#e3bc75'}).setOrigin(0.5);
-  this.add.text(pos.x,pos.y+9,'POSTHUMOUS AFFAIRS',{fontFamily:'monospace',fontSize:'11px',color:'#f6dda4'}).setOrigin(0.5);
+  this.add.text(pos.x,pos.y-7,'DEPARTMENT OF',{fontFamily:'monospace',fontSize:'11px',color:'#e3bc75'}).setOrigin(0.5).setDepth(25);
+  this.add.text(pos.x,pos.y+9,'POSTHUMOUS AFFAIRS',{fontFamily:'monospace',fontSize:'11px',color:'#f6dda4'}).setOrigin(0.5).setDepth(25);
   this.add.text(34,31,'DPA / INTAKE', {fontFamily:'monospace',fontSize:'11px',color:'#91a4b7',letterSpacing:1});
   this.add.text(34,555,'VISUAL LAB • NO SAVES', {fontFamily:'monospace',fontSize:'11px',color:'#93a2b5'});
   this.add.text(792,555,'9 × 7 / OFFICE', {fontFamily:'monospace',fontSize:'11px',color:'#93a2b5'});
@@ -197,7 +200,7 @@ function createAfterlifeSceneClass(){
   this.shadow.setDepth(98);
   this.add.text(p.x,p.y+35,'BILLY',{fontFamily:'monospace',fontSize:'10px',fontStyle:'bold',color:'#b3f4ff',backgroundColor:'#0c1622'}).setOrigin(0.5).setDepth(101);
   this.nameplate=this.children.list[this.children.list.length-1];
-  if(state.motionEnabled)this.tweens.add({targets:badge,alpha:{from:0.4,to:1},duration:800,yoyo:true,repeat:-1});
+  this.badgeTween=state.motionEnabled?this.tweens.add({targets:badge,alpha:{from:0.4,to:1},duration:800,yoyo:true,repeat:-1}):null;
  }
  refreshHighlights(){
   if(!this.markers)return;
@@ -223,6 +226,9 @@ function createAfterlifeSceneClass(){
  setAmbientMotion(enabled){
   state.motionEnabled=!!enabled;
   this.environment?.setMotion?.(state.motionEnabled);
+  if(this.badgeTween){
+   if(state.motionEnabled)this.badgeTween.resume();else this.badgeTween.pause();
+  }
   for(const m of this.markers?.values?.()||[]){
    this.tweens.killTweensOf(m.halo);
    m.halo.setAlpha(1).setScale(1);
@@ -277,6 +283,7 @@ function createAfterlifeSceneClass(){
   else setStatus('No station is close enough to inspect.');
  }
  flashGlitch(){
+  if(!state.motionEnabled)return; // respect reduced motion preference
   this.cameras.main.shake(240,0.006);
   this.cameras.main.flash(150,117,49,156,false);
  }
