@@ -1,13 +1,31 @@
 import {OFFICE,START,FIXTURES,cellEnabled,findPath,fixtureAt} from './office-model.mjs';
+import {decorateOffice} from './visuals.mjs';
 
 const $=id=>document.getElementById(id);
 const CELL=74, LEFT=127, TOP=41, WIDTH=920, HEIGHT=600;
 const position=(x,y)=>({x:LEFT+x*CELL+CELL/2,y:TOP+y*CELL+CELL/2});
-const state={pos:{...START},steps:0,visited:new Set(),statUsed:false,placements:false,glitch:false};
+const state={pos:{...START},steps:0,visited:new Set(),statUsed:false,placements:false,glitch:false,
+ motionEnabled:!(window.matchMedia?.('(prefers-reduced-motion: reduce)')?.matches??false)};
 const color={bg:0x0b1321,floor:0x26394c,floor2:0x304353,trim:0x687d8b,wall:0x111d2b,wall2:0x233246,blue:0x55c9ea,cream:0xf0deb6};
 let scene=null, modal=false, lastAction='Arrived at intake.';
 
+function updateObjectives(){
+ const done={
+  caseworker:state.placements,stat:state.statUsed,glitch:state.glitch,
+  exit:state.placements&&state.statUsed&&state.glitch&&state.visited.has('exit')
+ };
+ let count=0;
+ for(const [key,complete] of Object.entries(done)){
+  const el=$('task-'+key);
+  if(complete)count++;
+  el?.setAttribute?.('data-complete',complete?'true':'false');
+ }
+ $('objectives-complete')?.setAttribute?.('data-total',String(count));
+ const summary=$('objective-summary');
+ if(summary)summary.textContent=count+' / 4 resolved';
+}
 function setStatus(message){
+ updateObjectives();
  lastAction=message;
  $('activity').textContent=message;
  $('steps').textContent=String(state.steps);
@@ -99,8 +117,12 @@ function createAfterlifeSceneClass(){
   scene=this;
   this.cameras.main.setBackgroundColor('#09111d');
   this.drawRoom();
+  this.environment=decorateOffice(this,{at:position,cell:CELL,reduceMotion:!state.motionEnabled});
   this.drawFixtures();
   this.drawBilly();
+  const motionControl=$('motion-toggle');
+  motionControl?.setAttribute?.('aria-pressed',String(state.motionEnabled));
+  if(motionControl)motionControl.textContent=state.motionEnabled?'Motion: On':'Motion: Off';
   this.input.on('pointerdown',(pointer,targets)=>{
    if(modal)return;
    if(targets&&targets.length&&targets.some(x=>x.getData&&x.getData('interactive-fixture')))return;
@@ -140,8 +162,8 @@ function createAfterlifeSceneClass(){
    }
   }
   const pos=position(4,0);
-  this.add.text(pos.x,pos.y-7,'DEPARTMENT OF',{fontFamily:'monospace',fontSize:'11px',color:'#e3bc75'}).setOrigin(0.5);
-  this.add.text(pos.x,pos.y+9,'POSTHUMOUS AFFAIRS',{fontFamily:'monospace',fontSize:'11px',color:'#f6dda4'}).setOrigin(0.5);
+  this.add.text(pos.x,pos.y-7,'DEPARTMENT OF',{fontFamily:'monospace',fontSize:'11px',color:'#e3bc75'}).setOrigin(0.5).setDepth(25);
+  this.add.text(pos.x,pos.y+9,'POSTHUMOUS AFFAIRS',{fontFamily:'monospace',fontSize:'11px',color:'#f6dda4'}).setOrigin(0.5).setDepth(25);
   this.add.text(34,31,'DPA / INTAKE', {fontFamily:'monospace',fontSize:'11px',color:'#91a4b7',letterSpacing:1});
   this.add.text(34,555,'VISUAL LAB • NO SAVES', {fontFamily:'monospace',fontSize:'11px',color:'#93a2b5'});
   this.add.text(792,555,'9 × 7 / OFFICE', {fontFamily:'monospace',fontSize:'11px',color:'#93a2b5'});
@@ -150,38 +172,72 @@ function createAfterlifeSceneClass(){
   this.markers=new Map();
   FIXTURES.forEach(f=>{
    const p=position(f.x,f.y);
-   const halo=this.add.circle(p.x,p.y,29,f.color,0.13).setStrokeStyle(1,f.color,0.62);
-   const plate=this.add.rectangle(p.x,p.y+6,38,26,0x172437).setStrokeStyle(1,f.color,0.82);
-   const glyph=this.add.text(p.x,p.y+4,f.glyph,{fontFamily:'Georgia,serif',fontSize:'20px',fontStyle:'bold',color:'#f2e6d4'}).setOrigin(0.5);
-   this.add.text(p.x,p.y+27,f.label.toUpperCase(),{fontFamily:'monospace',fontSize:'8px',color:'#d7dfec',backgroundColor:'#0c1622'}).setOrigin(0.5);
+   const halo=this.add.circle(p.x,p.y,29,f.color,0.13).setStrokeStyle(1,f.color,0.62).setDepth(40);
+   const plate=this.add.rectangle(p.x,p.y+6,38,26,0x172437).setStrokeStyle(1,f.color,0.82).setDepth(41);
+   const glyph=this.add.text(p.x,p.y+4,f.glyph,{fontFamily:'Georgia,serif',fontSize:'20px',fontStyle:'bold',color:'#f2e6d4'}).setOrigin(0.5).setDepth(42);
+   this.add.text(p.x,p.y+27,f.label.toUpperCase(),{fontFamily:'monospace',fontSize:'8px',color:'#d7dfec',backgroundColor:'#0c1622'}).setOrigin(0.5).setDepth(43);
    halo.setInteractive({useHandCursor:true}).setData('interactive-fixture',true);
    halo.on('pointerdown',()=>{if(!modal)this.walkTo(f.x,f.y);});
    this.markers.set(f.id,{halo,plate,glyph});
-   this.tweens.add({targets:halo,alpha:{from:0.68,to:1},scale:{from:0.96,to:1.055},duration:1500+f.x*140,yoyo:true,repeat:-1});
+   if(state.motionEnabled)this.tweens.add({targets:halo,alpha:{from:0.68,to:1},scale:{from:0.96,to:1.055},duration:1500+f.x*140,yoyo:true,repeat:-1});
   });
  }
  drawBilly(){
   const p=position(state.pos.x,state.pos.y);
   this.shadow=this.add.ellipse(p.x,p.y+18,33,10,0x020811,0.75);
   this.billy=this.add.container(p.x,p.y);
+  this.footLeft=this.add.ellipse(-8,21,9,13,0x1d3342).setStrokeStyle(1,0x80d5dd);
+  this.footRight=this.add.ellipse(8,21,9,13,0x1d3342).setStrokeStyle(1,0x80d5dd);
   const coat=this.add.ellipse(0,8,25,28,0x3c98b8).setStrokeStyle(2,0x9debfb,0.7);
   const head=this.add.circle(0,-10,12,0xe2b99e).setStrokeStyle(2,0x3e3030);
   const hair=this.add.arc(0,-14,13,195,348,false,0x533e39);
   const eyes=this.add.circle(-4,-10,1.6,0x14253a);
   const eye2=this.add.circle(4,-10,1.6,0x14253a);
   const badge=this.add.rectangle(0,10,8,7,0xe4be76);
-  this.billy.add([coat,head,hair,eyes,eye2,badge]);
+  this.avatarBody=this.add.container(0,0,[this.footLeft,this.footRight,coat,head,hair,eyes,eye2,badge]);
+  this.billy.add(this.avatarBody);
   this.billy.setDepth(100);
   this.shadow.setDepth(98);
   this.add.text(p.x,p.y+35,'BILLY',{fontFamily:'monospace',fontSize:'10px',fontStyle:'bold',color:'#b3f4ff',backgroundColor:'#0c1622'}).setOrigin(0.5).setDepth(101);
   this.nameplate=this.children.list[this.children.list.length-1];
-  this.tweens.add({targets:badge,alpha:{from:0.4,to:1},duration:800,yoyo:true,repeat:-1});
+  this.badgeTween=state.motionEnabled?this.tweens.add({targets:badge,alpha:{from:0.4,to:1},duration:800,yoyo:true,repeat:-1}):null;
  }
  refreshHighlights(){
   if(!this.markers)return;
   for(const [id,m] of this.markers.entries()){
    m.plate.setFillStyle(state.visited.has(id)?0x284d47:0x172437);
   }
+ }
+ startGait(next){
+  if(!this.avatarBody)return; // scene constructed without rendering in contract tests
+  if(next.x!==state.pos.x)this.billy.scaleX=next.x<state.pos.x?-1:1;
+  if(!state.motionEnabled||this.gaitTween)return;
+  this.gaitTween=this.tweens.add({targets:this.avatarBody,y:-3,duration:110,yoyo:true,repeat:-1});
+  this.leftFootTween=this.tweens.add({targets:this.footLeft,y:26,duration:120,yoyo:true,repeat:-1});
+  this.rightFootTween=this.tweens.add({targets:this.footRight,y:16,duration:120,yoyo:true,repeat:-1,delay:120});
+ }
+ stopGait(){
+  for(const t of [this.gaitTween,this.leftFootTween,this.rightFootTween])t?.remove?.();
+  this.gaitTween=null;this.leftFootTween=null;this.rightFootTween=null;
+  if(this.avatarBody)this.avatarBody.y=0;
+  if(this.footLeft)this.footLeft.y=21;
+  if(this.footRight)this.footRight.y=21;
+ }
+ setAmbientMotion(enabled){
+  state.motionEnabled=!!enabled;
+  this.environment?.setMotion?.(state.motionEnabled);
+  if(this.badgeTween){
+   if(state.motionEnabled)this.badgeTween.resume();else this.badgeTween.pause();
+  }
+  for(const m of this.markers?.values?.()||[]){
+   this.tweens.killTweensOf(m.halo);
+   m.halo.setAlpha(1).setScale(1);
+   if(state.motionEnabled)this.tweens.add({targets:m.halo,alpha:{from:.68,to:1},scale:{from:.96,to:1.055},duration:1700,yoyo:true,repeat:-1});
+  }
+  if(!state.motionEnabled)this.stopGait();
+  const btn=$('motion-toggle');
+  btn?.setAttribute?.('aria-pressed',String(state.motionEnabled));
+  if(btn)btn.textContent=state.motionEnabled?'Motion: On':'Motion: Off';
  }
  moveDirection(dx,dy){
   if(modal||this.walking)return;
@@ -196,11 +252,12 @@ function createAfterlifeSceneClass(){
   this.advance();
  }
  advance(){
-  if(!this.path.length){this.walking=false;this.onArrival();return;}
+  if(!this.path.length){this.walking=false;this.stopGait();this.onArrival();return;}
   const to=this.path.shift();
   if(!cellEnabled(to.x,to.y)){this.path=[];this.walking=false;return;}
   this.walking=true;
   const p=position(to.x,to.y);
+  this.startGait(to);
   // Sprites have different vertical offsets; animate each to its own target.
   // Shared x-only movement kept Billy visually stuck on the original row.
   this.tweens.add({targets:this.shadow,x:p.x,y:p.y+18,
@@ -226,11 +283,14 @@ function createAfterlifeSceneClass(){
   else setStatus('No station is close enough to inspect.');
  }
  flashGlitch(){
+  if(!state.motionEnabled)return; // respect reduced motion preference
   this.cameras.main.shake(240,0.006);
   this.cameras.main.flash(150,117,49,156,false);
  }
  resetLab(){
   this.path=[];this.walking=false;
+  this.tweens.killTweensOf?.([this.billy,this.shadow,this.nameplate]);
+  this.stopGait();
   state.pos={...START};state.steps=0;state.visited.clear();state.statUsed=false;
   state.placements=false;state.glitch=false;
   const p=position(state.pos.x,state.pos.y);
@@ -250,6 +310,7 @@ function installUI(){
   if(scene&&d)scene.moveDirection(d[0],d[1]);
  }));
  $('interact').addEventListener('click',()=>{if(scene)scene.interactNearby();});
+ $('motion-toggle')?.addEventListener?.('click',()=>{if(scene)scene.setAmbientMotion(!state.motionEnabled);});
  $('reset').addEventListener('click',()=>{hidePanel();if(scene)scene.resetLab();});
  $('close-panel').addEventListener('click',hidePanel);
  $('story-panel').addEventListener('click',e=>{if(e.target===$('story-panel'))hidePanel();});
