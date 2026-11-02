@@ -37,7 +37,7 @@ function fixture(){
 }
 async function fetchLocal(port,{cookie=true}={}){
  return new Promise((resolve,reject)=>{
-  const req=requestHttp({host:'127.0.0.1',port,path:'/v1/game/map',method:'GET',
+  const req=requestHttp({host:'127.0.0.1',port,path:'/api/game/map',method:'GET',
    headers:{Host:'ascension-auth.aerovista.us',...(cookie?{Cookie:'aa_cards_session='+HANDLE}:{})}},res=>{
    let data='';res.on('data',chunk=>data+=chunk);
    res.on('end',()=>resolve({status:res.statusCode,body:JSON.parse(data)}));
