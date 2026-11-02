@@ -1,0 +1,32 @@
+name: Phaser 4 visual lab checks
+on:
+  pull_request:
+    paths:
+      - 'phaser-lab/**'
+      - '.github/workflows/phaser-lab-checks.yml'
+  push:
+    paths:
+      - 'phaser-lab/**'
+      - '.github/workflows/phaser-lab-checks.yml'
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check module syntax
+        run: |
+          node --check phaser-lab/game.mjs
+          node --check phaser-lab/office-model.mjs
+          node --check phaser-lab/office-model.test.mjs
+      - name: Source topology and route tests
+        run: node --test phaser-lab/office-model.test.mjs
+      - name: Verify static route entry
+        run: |
+          test -s phaser-lab/index.html
+          grep -q 'phaser-lab' phaser-lab/README.md || grep -q 'Phaser 4' phaser-lab/README.md
+          grep -q 'game.mjs' phaser-lab/index.html
