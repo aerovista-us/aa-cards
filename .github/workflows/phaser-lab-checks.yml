@@ -5,12 +5,18 @@ on:
       - 'phaser-lab/**'
       - 'gateway/visible-map-projection.mjs'
       - 'gateway/visible-map-projection.test.mjs'
+      - 'gateway/owned-map-session.mjs'
+      - 'gateway/owned-map-session.test.mjs'
+      - 'gateway/map-session-http.mjs'
       - '.github/workflows/phaser-lab-checks.yml'
   push:
     paths:
       - 'phaser-lab/**'
       - 'gateway/visible-map-projection.mjs'
       - 'gateway/visible-map-projection.test.mjs'
+      - 'gateway/owned-map-session.mjs'
+      - 'gateway/owned-map-session.test.mjs'
+      - 'gateway/map-session-http.mjs'
       - '.github/workflows/phaser-lab-checks.yml'
 jobs:
   validate:
@@ -32,8 +38,11 @@ jobs:
           node --check phaser-lab/authority/view-contract.mjs
           node --check phaser-lab/authority/sample-snapshots.mjs
           node --check gateway/visible-map-projection.mjs
+          node --check gateway/owned-map-session.mjs
+          node --check gateway/map-session-http.mjs
+          node --check phaser-lab/authority/live-map-client.mjs
       - name: Source topology and route tests
-        run: node --test phaser-lab/*.test.mjs phaser-lab/authority/*.test.mjs gateway/visible-map-projection.test.mjs
+        run: node --test phaser-lab/*.test.mjs phaser-lab/authority/*.test.mjs gateway/visible-map-projection.test.mjs gateway/owned-map-session.test.mjs
       - name: Verify static route entry
         run: |
           test -s phaser-lab/index.html
