@@ -10,6 +10,8 @@ const require=createRequire(import.meta.url);
 const url=process.env.RECOVERED_URL||'http://127.0.0.1:18763/';
 const target=process.env.RECOVERED_CAPTURE_PATH||'/tmp/aa-recovered-browser-baseline.json';
 const modulePath=process.env.PLAYWRIGHT_MODULE_PATH;
+const scenario=process.env.RECOVERED_SCENARIO||'earth-to-office-first-hour';
+const checkpoint='initial-main-menu';
 if(!modulePath)throw Error('PLAYWRIGHT_MODULE_PATH is required; no implicit dependency installs');
 const parsed=new URL(url);
 if(!['127.0.0.1','localhost'].includes(parsed.hostname))throw Error('Only isolated localhost recovered app is allowed');
@@ -29,7 +31,7 @@ try {
   return {state:app.state.snapshot(),map:structuredClone(app.captureMapSnapshot())};
  });
  if(!snapshot.state||!snapshot.map)throw Error('Recovered snapshot missing state/map');
- const payload={provenance:{source:'independent-recovered-browser',checkpoint:'initial-main-menu',url:parsed.origin,viewport:{width:390,height:844},captureTime:new Date().toISOString(),sourceSha256:process.env.RECOVERED_SOURCE_SHA256||null},...snapshot,pageErrors:errors};
+ const payload={provenance:{origin:'recovered-browser',captureId:crypto.randomUUID(),scenario,seed:String(snapshot.state.seedString),checkpoint,url:parsed.origin,viewport:{width:390,height:844},captureTime:new Date().toISOString(),sourceSha256:process.env.RECOVERED_SOURCE_SHA256||null},...snapshot,pageErrors:errors};
  await fs.writeFile(target,JSON.stringify(payload,null,2),{flag:'wx',mode:0o600});
  console.log(JSON.stringify({capture:target,sha256:crypto.createHash('sha256').update(JSON.stringify(payload)).digest('hex'),world:snapshot.state.currentWorld,turn:snapshot.state.turn,tiles:snapshot.map?.grid?.length??null,pageErrors:errors.length}));
  if(errors.length)process.exitCode=1;
