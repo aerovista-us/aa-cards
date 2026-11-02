@@ -90,7 +90,10 @@ function actionFor(id){
  }
  scene.refreshHighlights();
 }
-class AfterlifeScene extends window.Phaser.Scene{
+// Construct the Scene class only after the Phaser UMD script has loaded.
+// A top-level `extends window.Phaser.Scene` crashes while Phaser is still undefined.
+function createAfterlifeSceneClass(){
+ return class AfterlifeScene extends window.Phaser.Scene{
  constructor(){super('AfterlifeOffice');this.path=[];this.walking=false;}
  create(){
   scene=this;
@@ -198,7 +201,13 @@ class AfterlifeScene extends window.Phaser.Scene{
   if(!cellEnabled(to.x,to.y)){this.path=[];this.walking=false;return;}
   this.walking=true;
   const p=position(to.x,to.y);
-  this.tweens.add({targets:[this.billy,this.shadow,this.nameplate],x:p.x,
+  // Sprites have different vertical offsets; animate each to its own target.
+  // Shared x-only movement kept Billy visually stuck on the original row.
+  this.tweens.add({targets:this.shadow,x:p.x,y:p.y+18,
+   duration:185,ease:'Sine.easeInOut'});
+  this.tweens.add({targets:this.nameplate,x:p.x,y:p.y+35,
+   duration:185,ease:'Sine.easeInOut'});
+  this.tweens.add({targets:this.billy,x:p.x,y:p.y,
    duration:185,ease:'Sine.easeInOut',onComplete:()=>{
     state.pos={x:to.x,y:to.y};state.steps++;
     setStatus('Billy moved to ('+to.x+', '+to.y+').');
@@ -228,9 +237,10 @@ class AfterlifeScene extends window.Phaser.Scene{
   this.billy.setPosition(p.x,p.y);this.shadow.setPosition(p.x,p.y+18);this.nameplate.setPosition(p.x,p.y+35);
   this.refreshHighlights();setStatus('Sandbox reset. No account data was changed.');
  }
+ };
 }
 function installUI(){
- const sceneClass=AfterlifeScene;
+ const sceneClass=createAfterlifeSceneClass();
  const cfg={type:window.Phaser.AUTO,parent:'game',width:WIDTH,height:HEIGHT,
   backgroundColor:'#0b1321',render:{antialias:true,pixelArt:false},scene:[sceneClass],
   scale:{mode:window.Phaser.Scale.FIT,autoCenter:window.Phaser.Scale.CENTER_BOTH,width:WIDTH,height:HEIGHT}};
