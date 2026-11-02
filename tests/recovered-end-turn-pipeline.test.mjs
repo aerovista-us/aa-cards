@@ -5,3 +5,5 @@ const opts={inBounds:()=>true,syncTaskMarkers:()=>{},noteTurn:()=>{}};
 test('provisional turn advances and persists RNG checkpoint',()=>{const s=saved(),r=turn(s,opts);assert.equal(r.state.turn,3);assert.equal(r.state.actionPoints,4);assert.equal(r.state.cooldowns.a,1);assert.ok(r.state.rngDraws>=1);assert.equal(s.turn,2);});
 test('turn fails closed on active cutscene',()=>assert.throws(()=>turn(saved(),{...opts,ui:{cutsceneOpen:true}}),/turn_blocked/));
 test('turn requires active board, world map and callbacks',()=>{const s=saved();delete s.storyMemory.worldTaskBoard.AFTERLIFE;assert.throws(()=>turn(s,opts),/Canonical active board/);assert.throws(()=>turn(saved(),{}),/Canonical map bounds/);});
+
+test('persisted opening setup, queued cutscenes and active scenes block provisional end-turn without source mutation',()=>{for(const patch of [{pendingCanonicalTasks:['ensureWorldTaskBoard']},{pendingCutsceneQueue:['deathWake']},{activeCutsceneKey:'officeIntake'}]){const s={...saved(),...patch},before=structuredClone(s);assert.throws(()=>turn(s,opts),e=>e.status===409&&e.message==='pending_canonical_sequence');assert.deepEqual(s,before);}});
