@@ -25,6 +25,13 @@ Run a static server from the repository root, e.g. python3 -m http.server 8000, 
 ## Safe limits
 Do not interpret the free sample stat spin, encounter text, or path choices as recovered canonical outcomes. This folder is unlinked from the public playable concept and remains sandboxed until explicit promotion.
 
+## Read-only authoritative projection proof (V3)
+- `/phaser-lab/authority/` is a separate Phaser replay page that renders **recorded, synthetic** map frames. It never contacts the live API, authenticates a user, or writes turns/saves.
+- `gateway/visible-map-projection.mjs` is a **server-only** source-shape adapter that requires verified identity and matching run owner. It emits only discovered / walkable booleans, player position, revision, turn, and explicitly authorized visible markers. Never ship saved-state fields (NPC memory, seeds, RNG, spawns, hidden gates).
+- `authority/view-contract.mjs` validates the public-safe envelope, strips unknown fields, and rejects stale/out-of-order replay frames. The only user controls are advancing an already-recorded frame and replaying it from the start.
+- The synthetic sequence in `authority/sample-snapshots.mjs` intentionally demonstrates motion and fog-of-war without claiming actual gameplay.
+- The actual live `/v1/game/session` must be implemented by the authenticated gateway with owner-scoped loading, same-origin authorization, revocation, and read-only projection. The existing `/api/runs` endpoint is not this gateway.
+
 ## Next integration (not in scope)
 Server-owned sanitized map projection; game gateway authorizes every turn-relevant step/interaction; revision+idempotency semantics; durable save/resume; authenticated browser acceptance. No direct client access to saved-state internals, RNG seeds, unpublished content, or tailnet URLs.
 
