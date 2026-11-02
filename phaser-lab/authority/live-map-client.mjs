@@ -7,7 +7,7 @@ export class MapReadError extends Error{
 }
 export async function fetchOwnedMap({fetchImpl=globalThis.fetch,signal}={}){
  if(typeof fetchImpl!=='function')throw new TypeError('Fetch implementation required');
- const response=await fetchImpl('/v1/game/map',{
+ const response=await fetchImpl('/api/game/map',{
   method:'GET',mode:'same-origin',credentials:'same-origin',
   cache:'no-store',redirect:'error',
   headers:{Accept:'application/json'},
