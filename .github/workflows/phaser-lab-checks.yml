@@ -49,7 +49,7 @@ jobs:
           node --check gateway/avcc-map-identity.mjs
           node --check phaser-lab/authority/live-map-client.mjs
       - name: Source topology and route tests
-        run: node --test phaser-lab/*.test.mjs phaser-lab/authority/*.test.mjs gateway/visible-map-projection.test.mjs gateway/owned-map-session.test.mjs
+        run: node --test phaser-lab/*.test.mjs phaser-lab/authority/*.test.mjs gateway/visible-map-projection.test.mjs gateway/owned-map-session.test.mjs gateway/avcc-map-identity.test.mjs gateway/map-stack-integration.test.mjs
       - name: Verify static route entry
         run: |
           test -s phaser-lab/index.html
