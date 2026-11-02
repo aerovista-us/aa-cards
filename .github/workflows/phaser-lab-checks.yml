@@ -31,3 +31,20 @@ jobs:
           test -s phaser-lab/index.html
           grep -q 'phaser-lab' phaser-lab/README.md || grep -q 'Phaser 4' phaser-lab/README.md
           grep -q 'game.mjs' phaser-lab/index.html
+  browser:
+    name: Real-browser Phaser smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install pinned browser driver
+        run: npm install --no-save --no-package-lock --ignore-scripts playwright@1.58.2
+      - name: Install Chromium for smoke test
+        run: npx playwright install --with-deps chromium
+      - name: Render and interact in Chromium
+        run: node phaser-lab/browser-smoke.mjs
