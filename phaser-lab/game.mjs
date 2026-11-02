@@ -210,15 +210,15 @@ function createAfterlifeSceneClass(){
   if(next.x!==state.pos.x)this.billy.scaleX=next.x<state.pos.x?-1:1;
   if(!state.motionEnabled||this.gaitTween)return;
   this.gaitTween=this.tweens.add({targets:this.avatarBody,y:-3,duration:110,yoyo:true,repeat:-1});
-  this.leftFootTween=this.tweens.add({targets:this.footLeft,y:5,duration:120,yoyo:true,repeat:-1});
-  this.rightFootTween=this.tweens.add({targets:this.footRight,y:-5,duration:120,yoyo:true,repeat:-1,delay:120});
+  this.leftFootTween=this.tweens.add({targets:this.footLeft,y:26,duration:120,yoyo:true,repeat:-1});
+  this.rightFootTween=this.tweens.add({targets:this.footRight,y:16,duration:120,yoyo:true,repeat:-1,delay:120});
  }
  stopGait(){
   for(const t of [this.gaitTween,this.leftFootTween,this.rightFootTween])t?.remove?.();
   this.gaitTween=null;this.leftFootTween=null;this.rightFootTween=null;
   if(this.avatarBody)this.avatarBody.y=0;
-  if(this.footLeft)this.footLeft.y=0;
-  if(this.footRight)this.footRight.y=0;
+  if(this.footLeft)this.footLeft.y=21;
+  if(this.footRight)this.footRight.y=21;
  }
  setAmbientMotion(enabled){
   state.motionEnabled=!!enabled;
