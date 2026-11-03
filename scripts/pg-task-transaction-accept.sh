@@ -17,6 +17,7 @@ docker exec -i "$NAME" psql -q -v ON_ERROR_STOP=1 -U postgres -d ascension_accep
 node "$ROOT/scripts/pg-task-transaction-accept.mjs"
 node "$ROOT/scripts/pg-cutscene-journey-accept.mjs"
 node "$ROOT/scripts/pg-opening-board-accept.mjs"
+node "$ROOT/scripts/pg-end-turn-accept.mjs"
 # Restart this disposable database; connect with a fresh Node process.
 docker restart "$NAME" >/dev/null
 ready=0

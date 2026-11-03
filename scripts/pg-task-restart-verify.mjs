@@ -19,6 +19,9 @@ try{
  assert.equal(board.state.rngDraws,7);
  assert.equal(board.state.worldMap.taskMarkers.length,1);
  assert.deepEqual(board.state.pendingCanonicalTasks,['drainCutsceneQueue']);
+ const turn=(await pool.query('SELECT revision,state FROM ascension_player_runs WHERE id=$1 AND owner_subject=$2',['m18-end-turn-accept','alice'])).rows[0];
+ assert.equal(Number(turn.revision),1);assert.equal(turn.state.turn,3);assert.equal(turn.state.actionPoints,4);assert.ok(turn.state.rngDraws>0);
+ console.log('PASS: owner-locked bounded end-turn persisted across PG restart');
  console.log('PASS: owner-locked opening board, task markers and RNG persisted across PG restart');
  console.log('PASS: bounded cutscene completion also survives PostgreSQL restart');
  console.log('PASS: new Node process and new PG connection loaded unchanged committed task/reward/marker/RNG state after DB restart');
