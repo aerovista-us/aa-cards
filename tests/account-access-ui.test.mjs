@@ -76,6 +76,26 @@ test('a still-active session after logout is reported as connected and unconfirm
  await h.account.refresh();const view=await h.account.signOut();
  assert.equal(view.phase,'signed_in');assert.match(view.message,/not confirmed/);
 });
+test('visibility refresh waits for pending logout and its confirming session read',async()=>{
+ let completeLogout;
+ const h=harness([response(signedIn),()=>new Promise(resolve=>{completeLogout=resolve}),response(signedOut),response(signedOut)]);
+ await h.account.refresh();
+ const logout=h.account.signOut();
+ const returningTab=h.account.refresh();
+ assert.deepEqual(h.requests.map(r=>new URL(r.url).pathname),['/api/session','/api/logout']);
+ assert.equal(h.account.snapshot().phase,'signing_out');
+ completeLogout(response({ok:true}));
+ await Promise.all([logout,returningTab]);
+ assert.deepEqual(h.requests.map(r=>new URL(r.url).pathname),['/api/session','/api/logout','/api/session','/api/session']);
+ assert.equal(h.account.snapshot().phase,'signed_out');
+});
+test('duplicate logout calls share one server request and confirmation',async()=>{
+ let completeLogout;
+ const h=harness([response(signedIn),()=>new Promise(resolve=>{completeLogout=resolve}),response(signedOut)]);
+ await h.account.refresh();const first=h.account.signOut(),second=h.account.signOut();
+ assert.equal(first,second);completeLogout(response({ok:true}));await first;
+ assert.deepEqual(h.requests.map(r=>new URL(r.url).pathname),['/api/session','/api/logout','/api/session']);
+});
 test('late refresh responses cannot resurrect a newer signed-out state',async()=>{
  let complete;
  const h=harness([()=>new Promise(resolve=>{complete=resolve}),response(signedOut)]);

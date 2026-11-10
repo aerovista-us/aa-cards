@@ -6,7 +6,7 @@ export const ACCOUNT_LINKS=Object.freeze({
 });
 
 export function createAccountAccess({fetchImpl=globalThis.fetch,onChange=()=>{}}={}){
- let csrf=null,generation=0;
+ let csrf=null,generation=0,signOutTask=null;
  let view=Object.freeze({phase:'signed_out',pending:false,message:'Not signed in.',canSignOut:false});
  function show(phase,message){
   view=Object.freeze({phase,pending:['checking','signing_out'].includes(phase),message,canSignOut:phase==='signed_in'});
@@ -34,7 +34,13 @@ export function createAccountAccess({fetchImpl=globalThis.fetch,onChange=()=>{}}
   // Identity and CSRF values never become public status, DOM text or storage.
   return {connected:true,csrf:body.csrf};
  }
- async function refresh({callbackResult}={}){
+ function refresh(options={}){
+  // Visibility/pageshow events must not invalidate an in-flight logout or
+  // read the still-active session before its confirming read completes.
+  if(signOutTask)return signOutTask.then(()=>refresh(options));
+  return refreshNow(options);
+ }
+ async function refreshNow({callbackResult}={}){
   const attempt=++generation;csrf=null;show('checking','Checking your account connection…');
   try{
    const response=await request('/api/session');
@@ -48,8 +54,13 @@ export function createAccountAccess({fetchImpl=globalThis.fetch,onChange=()=>{}}
    csrf=null;return show('unavailable','Could not check your account connection. Try again.');
   }
  }
- async function signOut(){
+ function signOut(){
+  if(signOutTask)return signOutTask;
   if(!csrf)return refresh();
+  signOutTask=signOutNow().finally(()=>{signOutTask=null;});
+  return signOutTask;
+ }
+ async function signOutNow(){
   const token=csrf,attempt=++generation;csrf=null;show('signing_out','Signing out…');
   try{
    const result=await request('/api/logout',{method:'POST',csrfToken:token});
