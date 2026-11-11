@@ -1,0 +1,36 @@
+name: Dormant NPC candidate checks
+on:
+  pull_request:
+    paths: ['gateway/**', 'game/world-contract.mjs', 'tests/npc*', 'tests/redis-npc*', 'tests/world-npc*', '.github/workflows/npc-candidate-checks.yml']
+  push:
+    branches: [main]
+    paths: ['gateway/**', 'game/world-contract.mjs', 'tests/npc*', 'tests/redis-npc*', 'tests/world-npc*', '.github/workflows/npc-candidate-checks.yml']
+permissions:
+  contents: read
+jobs:
+  redis-stores:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    services:
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 2s --health-timeout 2s --health-retries 15
+    env:
+      ASCENSION_DISPOSABLE_REDIS: '1'
+      REDIS_URL: redis://127.0.0.1:6379/15
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Run NPC contract tests
+        run: node --test tests/npc-dialogue.test.mjs tests/npc-http.test.mjs tests/redis-npc-stores.test.mjs tests/world-npc-context.test.mjs
+      - name: Install isolated official Redis client
+        run: |
+          npc_test_dir="$RUNNER_TEMP/npc-redis-client"
+          npm install --prefix "$npc_test_dir" --no-audit --no-fund --ignore-scripts redis@6.2.1
+          echo "NPC_REDIS_MODULE_PATH=$npc_test_dir/node_modules/redis" >> "$GITHUB_ENV"
+      - name: Verify shared Redis quota, cache isolation and expiration
+        run: node --test tests/npc-stores.redis-ci.mjs
