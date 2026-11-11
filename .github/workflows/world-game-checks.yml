@@ -29,6 +29,7 @@ jobs:
       PGDATABASE: ascension_world_ci
       PGUSER: ascension_ci
       PGPASSWORD: disposable-ci-only
+      ASCENSION_CANDIDATE_REVISION: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
@@ -49,6 +50,20 @@ jobs:
         run: node --test tests/world-game.pg-ci.mjs
       - name: Prove bounded recovered choice and cutscene transactions
         run: node --test tests/recovered-transactions.pg-ci.mjs
+      - name: Record complete disposable database checkpoint
+        run: WORLD_RESTART_PHASE=before node --test tests/world-restart.pg-ci.mjs
+      - name: Restart only the disposable PostgreSQL service
+        env:
+          POSTGRES_CI_CONTAINER: ${{ job.services.postgres.id }}
+        run: |
+          docker restart --time 10 "$POSTGRES_CI_CONTAINER"
+          for attempt in $(seq 1 30); do
+            if docker exec "$POSTGRES_CI_CONTAINER" pg_isready -U ascension_ci -d ascension_world_ci; then exit 0; fi
+            sleep 2
+          done
+          exit 1
+      - name: Prove full-state persistence, owner denial and action after database restart
+        run: WORLD_RESTART_PHASE=after node --test tests/world-restart.pg-ci.mjs
       - name: Install isolated Chromium
         run: node "$OFFICE_PLAYWRIGHT_PATH/cli.js" install --with-deps chromium
       - name: Play both Glitch paths through the Office and Hallway
