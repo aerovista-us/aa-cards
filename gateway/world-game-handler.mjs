@@ -6,6 +6,7 @@ import {projectWorldGame} from './world-game-view.mjs';
 const ROUTES=new Set(['/api/game/world','/api/game/world/runs','/api/game/world/actions']);
 const KNOWN=new Set(['authentication_required','world_denied','not_found','run_exists','stale_revision','invalid_run','invalid_action',
  'blocked','invalid_move','target_not_in_reach','already_open','not_openable','npc_not_in_reach','unsupported_topic','unsupported_action']);
+const BODY_STATUS=Object.freeze({json_required:415,request_too_large:413,invalid_json:400,request_timeout:408});
 const error=(code,status)=>Object.assign(Error(code),{status});
 function cookie(raw,name){
  const values=String(raw||'').split(';').map(x=>x.trim()).filter(x=>x.startsWith(name+'='));
@@ -69,7 +70,7 @@ export function createWorldGameHandler({adapter,store,appOrigin,uiOrigin,newRunI
    }
    return send(read?200:url.pathname.endsWith('/runs')?201:200,{view:projectWorldGame(who,run)});
   }catch(e){return KNOWN.has(e?.message)&&[401,403,404,409,422].includes(e.status)
-   ?send(e.status,{error:e.message}):['json_required','request_too_large','invalid_json','request_timeout'].includes(e?.message)
+   ?send(e.status,{error:e.message}):Object.hasOwn(BODY_STATUS,e?.message)&&e.status===BODY_STATUS[e.message]
    ?send(e.status,{error:e.message}):send(503,{error:'world_unavailable'});}
  };
 }

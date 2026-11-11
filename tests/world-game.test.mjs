@@ -65,6 +65,12 @@ test('malformed request target returns a bounded denial rather than rejecting th
  const handled=await handler({url:'http://[',headers:{}},{writeHead:s=>{status=s;},end:b=>{body=JSON.parse(b);}});
  assert.equal(handled,true);assert.equal(status,400);assert.deepEqual(body,{error:'invalid_url'});
 });
+test('untyped backend errors cannot masquerade as request parser statuses',async t=>{
+ const f=await fixture(t);
+ f.store.loadCurrentRun=async()=>{throw Error('invalid_json');};
+ const result=await f.send('/api/game/world');
+ assert.equal(result.status,503);assert.deepEqual(result.body,{error:'world_unavailable'});
+});
 test('cross-owner, permission, revoked and mismatching identity contexts fail closed',async t=>{
  const f=await fixture(t),created=await f.send('/api/game/world/runs',{method:'POST',value:{}});
  const value={runId:created.body.view.runId,expectedRevision:0,command:{type:'move',dx:1,dy:0}};
