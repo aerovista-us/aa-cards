@@ -9,19 +9,22 @@ export function createOwnerCutsceneTransaction({pool,authorizeChapter}){
   if(!valid(identity?.subject))throw fail('authentication_required',401);
   if(!valid(runId)||!cutscene(input?.cutsceneKey)||!Number.isSafeInteger(input?.expectedRevision)||input.expectedRevision<0)throw fail('invalid_continuation',422);
   const client=await pool.connect();
+  let discard;
   try{
    await client.query('BEGIN');
-   const result=await client.query('SELECT id,owner_subject,revision,state FROM ascension_player_runs WHERE id=$1 FOR UPDATE',[runId]);
+   const result=await client.query('SELECT id,owner_subject,revision,state FROM ascension_player_runs WHERE id=$1 AND owner_subject=$2 FOR UPDATE',[runId,identity.subject]);
    const run=result.rows[0];
    if(!run||run.owner_subject!==identity.subject)throw fail('not_found',404);
    if(Number(run.revision)!==input.expectedRevision)throw fail('stale_revision',409);
    if(await authorizeChapter(identity,run.state,input,client)!==true)throw fail('chapter_denied',403);
    const state=structuredClone(run.state);
+   const pending=state.pendingCanonicalTasks;
+   if(pending!==undefined&&(!Array.isArray(pending)||pending.some(task=>task!=='drainCutsceneQueue')))throw fail('opening_setup_pending',409);
    const nextCutscene=continueRecoveredCutscene(state,input.cutsceneKey);
    const saved=await client.query('UPDATE ascension_player_runs SET state=$1::jsonb,revision=revision+1,updated_at=NOW() WHERE id=$2 AND owner_subject=$3 AND revision=$4 RETURNING id,revision,state',[JSON.stringify(state),runId,identity.subject,run.revision]);
    if(saved.rows.length!==1)throw fail('stale_revision',409);
    await client.query('COMMIT');
    return {id:saved.rows[0].id,revision:Number(saved.rows[0].revision),state:saved.rows[0].state,nextCutscene};
-  }catch(error){await client.query('ROLLBACK');throw error}finally{client.release()}
+  }catch(error){try{await client.query('ROLLBACK');}catch(cleanup){discard=cleanup;}throw error}finally{client.release(discard)}
  }});
 }

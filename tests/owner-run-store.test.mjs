@@ -50,3 +50,11 @@ test('accepts canonical dotted storylet IDs and PostgreSQL bigint string revisio
  assert.equal(saved.revision,1);
  assert.equal((await h.store.loadOwnedRun({subject:'alice'},'run-1')).revision,1);
 });
+
+test('failed choice rollback discards the connection while preserving the original denial',async()=>{
+ const cleanup=Error('rollback failed');let discarded;
+ const pool={connect:async()=>({query:async sql=>{if(sql==='BEGIN')return {rows:[]};if(sql==='ROLLBACK')throw cleanup;return {rows:[]};},release:error=>{discarded=error;}})};
+ const store=createOwnerRunStore({pool,executeCanonicalChoice:async()=>({}),authorizeChapter:async()=>true});
+ await assert.rejects(store.commitChoice({subject:'alice'},'missing-run',input),e=>e.status===404);
+ assert.equal(discarded,cleanup);
+});
