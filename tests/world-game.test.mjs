@@ -6,6 +6,7 @@ import {createWorldGameHandler} from '../gateway/world-game-handler.mjs';
 import {projectWorldGame} from '../gateway/world-game-view.mjs';
 import {normalizeWorldCommand,normalizeWorldView} from '../game/world-contract.mjs';
 import {createOfficeRun,applyWorldAction,restoreOfficeRun} from '../gateway/world-interaction-engine.mjs';
+import {completeState} from './support/office-journey.mjs';
 const csrf='fixture-only-csrf-value-123456789';
 export function memoryStore(){
  const rows=new Map();let writes=0,allowed=true;
@@ -106,9 +107,7 @@ test('stale revision cannot repeat a committed action; oversized/malformed bodie
 });
 test('opening mission and NPC reactions survive serialized server resume; view strips private extras',()=>{
  let state=createOfficeRun({ownerId:'player-a',runId:'run-1'});
- const commands=[{type:'inspect',target:'notice'},...Array.from({length:3},()=>({type:'move',dx:1,dy:0})),
-  {type:'open',target:'cabinet'},{type:'move',dx:1,dy:0},{type:'talk',target:'caseworker',topic:'placement'}];
- for(const command of commands)state=applyWorldAction(state,command).state;
+ state=completeState(state);
  state=restoreOfficeRun(JSON.stringify(state),{ownerId:'player-a'});
  const view=projectWorldGame({subject:'player-a'},{id:state.runId,revision:state.revision,state:{...state,seedString:'private-seed'}});
  assert.equal(view.mission.complete,true);assert.equal(view.mission.steps.every(x=>x.complete),true);

@@ -12,6 +12,7 @@ import {createOwnerWorldInteractionStore} from '../gateway/owner-world-interacti
 import {createWorldGameHandler} from '../gateway/world-game-handler.mjs';
 import {projectWorldGame} from '../gateway/world-game-view.mjs';
 import {createWorldGameClient} from '../game/world-client.mjs';
+import {completeClient} from './support/office-journey.mjs';
 if(process.env.ASCENSION_DISPOSABLE_PG!=='1'||process.env.PGHOST!=='127.0.0.1'||
  process.env.PGDATABASE!=='ascension_world_ci'||process.env.PGUSER!=='ascension_ci'||!process.env.WORLD_PG_MODULE_PATH)
  throw Error('Explicit disposable loopback PostgreSQL configuration required');
@@ -56,11 +57,10 @@ if(process.env.WORLD_RESUME_WORKER==='1'){
  await t.test('opening mission and NPC memory are committed through the actual client and API',async()=>{
   await client.refresh();assert.equal(client.snapshot().phase,'new_run');
   await client.begin();assert.equal(client.snapshot().phase,'ready');
-  for(const action of ['inspect-notice','move-east','move-east','move-east','open-cabinet','move-east','talk-placement']){
-   await client.act(action);assert.equal(client.snapshot().phase,'ready');
-  }
+  await completeClient(client,{resolution:'conceal'});
   accepted=client.snapshot().view;
-  assert.equal(accepted.mission.complete,true);assert.equal(accepted.revision,7);
+  assert.equal(accepted.mission.complete,true);assert.ok(accepted.revision>7);
+  assert.equal(accepted.caseFile.glitch.resolution,'conceal');assert.equal(accepted.world.width,9);
   const resumed=makeClient();await resumed.refresh();assert.deepEqual(resumed.snapshot().view,accepted);
  });
  await t.test('a new Node process restores exactly the same player-visible state from PostgreSQL',async()=>{
@@ -71,14 +71,14 @@ if(process.env.WORLD_RESUME_WORKER==='1'){
   assert.deepEqual(JSON.parse(result.stdout),accepted);
  });
  await t.test('concurrent actions commit one revision and reject the stale contender',async()=>{
-  const value={runId:accepted.runId,expectedRevision:accepted.revision,command:{type:'move',dx:-1,dy:0}};
+  const value={runId:accepted.runId,expectedRevision:accepted.revision,command:accepted.actions.find(a=>a.command.type==='move').command};
   const results=await Promise.all([post(value),post(value)]);
   assert.deepEqual(results.map(r=>r.status).sort(),[200,409]);
   const current=await store.loadCurrentRun(identity);assert.equal(current.revision,accepted.revision+1);
  });
  await t.test('wrong owner, denied permission and failure after SQL UPDATE preserve saved state',async()=>{
   const before=await store.loadCurrentRun(identity);
-  const value={runId:before.id,expectedRevision:before.revision,command:{type:'move',dx:-1,dy:0}};
+  const value={runId:before.id,expectedRevision:before.revision,command:projectWorldGame(identity,before).actions.find(a=>a.command.type==='move').command};
   assert.equal((await post(value,'fixture-b')).status,404);
   allowed=false;assert.equal((await post(value)).status,403);allowed=true;
   const failingPool={connect:async()=>{

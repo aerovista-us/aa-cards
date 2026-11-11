@@ -19,7 +19,7 @@ test('create → move → load preserves owner state and revision',async()=>{
  const {pool}=fakePool(),s=createOwnerWorldInteractionStore({pool,authorizeWorld:async()=>true});
  await s.createRun(alice,'office-1');
  const moved=await s.commitAction(alice,'office-1',{expectedRevision:0,command:{type:'move',dx:1,dy:0}});
- assert.equal(moved.revision,1);assert.equal(moved.state.player.x,1);
+ assert.equal(moved.revision,1);assert.equal(moved.state.player.x,5);
  const resumed=await s.loadRun(alice,'office-1');assert.deepEqual(resumed.state,moved.state);
 });
 test('rejects unauthenticated, stale, cross-owner and unauthorized actions',async()=>{

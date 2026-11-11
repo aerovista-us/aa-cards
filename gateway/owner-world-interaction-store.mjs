@@ -20,7 +20,7 @@ export function createOwnerWorldInteractionStore({pool,authorizeWorld}={}){
   async loadCurrentRun(identity){
    const owner=requireIdentity(identity),client=await pool.connect();
    try{
-    const result=await client.query("SELECT id,revision,state FROM ascension_player_runs WHERE owner_subject=$1 AND state->>'location'='afterlife-placement-office' AND state->>'schemaVersion'='1' ORDER BY updated_at DESC,id ASC LIMIT 1",[owner]);
+    const result=await client.query("SELECT id,revision,state FROM ascension_player_runs WHERE owner_subject=$1 AND state->>'location'='afterlife-placement-office' ORDER BY updated_at DESC,id ASC LIMIT 1",[owner]);
     const row=result.rows[0];
     if(await authorizeWorld(identity,{type:'load',...(row?{runId:row.id}:{})},client)!==true)throw fail('world_denied',403);
     if(!row)return null;
