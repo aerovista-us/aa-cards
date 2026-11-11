@@ -6,7 +6,9 @@ function fakePool(){
  let row=null;const calls=[];
  const client={async query(sql,args=[]){
   calls.push(sql);
-  if(sql==='BEGIN'||sql==='COMMIT'||sql==='ROLLBACK')return {rows:[]};
+  if(sql==='BEGIN ISOLATION LEVEL READ COMMITTED'||sql==='COMMIT'||sql==='ROLLBACK')return {rows:[]};
+  if(sql.startsWith('SELECT pg_advisory_xact_lock'))return {rows:[]};
+  if(sql.includes('LIMIT 2'))return {rows:row&&row.owner_subject===args[0]?[structuredClone(row)]:[]};
   if(sql.startsWith('INSERT')){if(row)return {rows:[]};row={id:args[0],owner_subject:args[1],revision:0,state:JSON.parse(args[2])};return {rows:[row]};}
   if(sql.startsWith('SELECT'))return {rows:row&&row.id===args[0]&&(!sql.includes('owner_subject=$2')||row.owner_subject===args[1])?[structuredClone(row)]:[]};
   if(sql.startsWith('UPDATE')){if(!row||row.id!==args[1]||row.owner_subject!==args[2]||row.revision!==args[3])return {rows:[]};row.state=JSON.parse(args[0]);row.revision++;return {rows:[structuredClone(row)]};}
@@ -47,3 +49,13 @@ test('failed rollback discards the connection and preserves the original failure
  assert.equal(discarded.message,'fixture-cleanup-failure');
 });
 
+
+test('a repeated create refuses a second current run and preserves progress',async()=>{
+ const {pool,calls}=fakePool(),s=createOwnerWorldInteractionStore({pool,authorizeWorld:async()=>true});
+ await s.createRun(alice,'office-1');
+ const progressed=await s.commitAction(alice,'office-1',{expectedRevision:0,command:{type:'inspect',target:'notice'}});
+ await assert.rejects(s.createRun(alice,'office-retry'),e=>e.status===409&&e.message==='run_exists');
+ assert.deepEqual(await s.loadCurrentRun(alice),{id:progressed.id,revision:progressed.revision,state:progressed.state});
+ assert.equal(calls.filter(sql=>sql.startsWith('INSERT')).length,1);
+ assert.equal(calls.filter(sql=>sql.startsWith('SELECT pg_advisory_xact_lock')).length,2);
+});

@@ -12,28 +12,40 @@ export function createOwnerWorldInteractionStore({pool,authorizeWorld}={}){
  async function withTransaction(fn){
   const client=await pool.connect();
   let discard;
-  try{await client.query('BEGIN');const result=await fn(client);await client.query('COMMIT');return result;}
+  try{await client.query('BEGIN ISOLATION LEVEL READ COMMITTED');const result=await fn(client);await client.query('COMMIT');return result;}
   catch(e){try{await client.query('ROLLBACK');}catch(cleanupError){discard=cleanupError;}throw e;}
   finally{client.release(discard);}
+ }
+ // Every creation for this game's owner slot takes the same transaction lock.
+ // This also serializes two tabs whose initial reads both returned run_not_found.
+ async function currentRow(client,owner){
+  const result=await client.query("SELECT id,revision,state FROM ascension_player_runs WHERE owner_subject=$1 AND state->>'location' IN ('afterlife-placement-office','afterlife-hallway') ORDER BY updated_at DESC,id ASC LIMIT 2",[owner]);
+  if(result.rows.length>1)throw fail('ambiguous_run',503);
+  return result.rows[0]||null;
+ }
+ function restoredRow(row,owner){
+  const state=restoreOfficeRun(JSON.stringify(row.state),{ownerId:owner});
+  if(state.runId!==row.id||state.revision!==Number(row.revision))throw fail('corrupt_revision',500);
+  return {id:row.id,revision:Number(row.revision),state};
  }
  return Object.freeze({
   async loadCurrentRun(identity){
    const owner=requireIdentity(identity),client=await pool.connect();
    try{
-    const result=await client.query("SELECT id,revision,state FROM ascension_player_runs WHERE owner_subject=$1 AND state->>'location' IN ('afterlife-placement-office','afterlife-hallway') ORDER BY updated_at DESC,id ASC LIMIT 1",[owner]);
-    const row=result.rows[0];
+    const row=await currentRow(client,owner);
     if(await authorizeWorld(identity,{type:'load',...(row?{runId:row.id}:{})},client)!==true)throw fail('world_denied',403);
-    if(!row)return null;
-    const state=restoreOfficeRun(JSON.stringify(row.state),{ownerId:owner});
-    if(state.runId!==row.id||state.revision!==Number(row.revision))throw fail('corrupt_revision',500);
-    return {id:row.id,revision:Number(row.revision),state};
+    return row?restoredRow(row,owner):null;
    }finally{client.release();}
   },
   async createRun(identity,runId){
    const owner=requireIdentity(identity);
    if(!id(runId))throw fail('invalid_run',422);
    return withTransaction(async client=>{
+    await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1,0))',['ascension:world-slot:v1:'+owner]);
     if(await authorizeWorld(identity,{type:'create',runId},client)!==true)throw fail('world_denied',403);
+    const existing=await currentRow(client,owner);
+    // Never hide an unsupported/corrupt save behind a new run or reroll its seed.
+    if(existing){restoredRow(existing,owner);throw fail('run_exists',409);}
     const state=createOfficeRun({ownerId:owner,runId});
     const saved=await client.query('INSERT INTO ascension_player_runs (id,owner_subject,revision,state) VALUES ($1,$2,0,$3::jsonb) ON CONFLICT (id) DO NOTHING RETURNING id,revision,state',[runId,owner,JSON.stringify(state)]);
     if(saved.rows.length!==1)throw fail('run_exists',409);

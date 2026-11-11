@@ -2,9 +2,9 @@ name: Main game transaction checks
 on:
   pull_request:
     branches: [main]
-    paths: ['game/**', 'gateway/**', 'tests/world-*.mjs', 'tests/support/**', 'scripts/office-browser-accept.mjs', '.github/workflows/world-game-checks.yml']
+    paths: ['game/**', 'gateway/**', 'tests/world-*.mjs', 'tests/owner-world-interaction-store.test.mjs', 'tests/support/**', 'scripts/office-browser-accept.mjs', '.github/workflows/world-game-checks.yml']
   push:
-    branches: [feat/main-game-world-pipeline]
+    branches: [main, feat/main-game-world-pipeline]
 permissions:
   contents: read
 jobs:

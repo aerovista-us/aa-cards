@@ -54,16 +54,43 @@ if(process.env.WORLD_RESUME_WORKER==='1'){
   return {status:r.status,body:await r.json()};
  };
  t.after(async()=>{server.closeAllConnections();await new Promise(resolve=>server.close(resolve));await pool.end();});
- const client=makeClient();let accepted;
+ let client=makeClient(),accepted;
  await t.test('opening mission and NPC memory are committed through the actual client and API',async()=>{
   await client.refresh();assert.equal(client.snapshot().phase,'new_run');
-  await client.begin();assert.equal(client.snapshot().phase,'ready');
+  const secondTab=makeClient();await secondTab.refresh();assert.equal(secondTab.snapshot().phase,'new_run');
+  const contenders=[client,secondTab];await Promise.all(contenders.map(c=>c.begin()));
+  assert.deepEqual(contenders.map(c=>c.snapshot().phase).sort(),['conflict','ready']);
+  client=contenders.find(c=>c.snapshot().phase==='ready');
+  const count=await pool.query('SELECT count(*)::int AS count FROM ascension_player_runs WHERE owner_subject=$1',[identity.subject]);assert.equal(count.rows[0].count,1);
   await completeClient(client,{resolution:'conceal'});
   await completeHallwayClient(client);
   accepted=client.snapshot().view;
   assert.equal(accepted.mission.complete,true);assert.ok(accepted.revision>7);
   assert.equal(accepted.caseFile.glitch.resolution,'conceal');assert.equal(accepted.world.width,9);assert.equal(accepted.world.id,'afterlife-hallway');assert.equal(accepted.hallway.inspectionComplete,true);
   const resumed=makeClient();await resumed.refresh();assert.deepEqual(resumed.snapshot().view,accepted);
+ });
+ await t.test('retrying create after committed progress returns 409 without a fork, reset or RNG change',async()=>{
+  const before=await store.loadCurrentRun(identity);
+  for(let i=0;i<2;i++){
+   const response=await fetchAs()(origin+'/api/game/world/runs',{method:'POST',headers:{'Content-Type':'application/json','X-Ascension-CSRF':csrf},body:'{}'});
+   assert.equal(response.status,409);assert.deepEqual(await response.json(),{error:'run_exists'});
+  }
+  const count=await pool.query('SELECT count(*)::int AS count FROM ascension_player_runs WHERE owner_subject=$1',[identity.subject]);assert.equal(count.rows[0].count,1);
+  assert.deepEqual(await store.loadCurrentRun(identity),before);
+  const independent={subject:'fixture-independent-player'};await store.createRun(independent,'fixture-independent-run');assert.equal((await store.loadCurrentRun(independent)).id,'fixture-independent-run');
+ });
+ await t.test('historical duplicate or unsupported Office saves fail closed instead of selecting/resetting one',async()=>{
+  const who={subject:'fixture-duplicate-player'};
+  for(const id of ['fixture-duplicate-a','fixture-duplicate-b']){
+   const state=createOfficeRun({ownerId:who.subject,runId:id});
+   await pool.query('INSERT INTO ascension_player_runs (id,owner_subject,revision,state) VALUES ($1,$2,0,$3::jsonb)',[id,who.subject,JSON.stringify(state)]);
+  }
+  await assert.rejects(store.loadCurrentRun(who),e=>e.message==='ambiguous_run');
+  await assert.rejects(store.createRun(who,'fixture-duplicate-c'),e=>e.message==='ambiguous_run');
+  const oldOwner={subject:'fixture-unsupported-player'},old=createOfficeRun({ownerId:oldOwner.subject,runId:'fixture-unsupported-run'});old.schemaVersion=1;
+  await pool.query('INSERT INTO ascension_player_runs (id,owner_subject,revision,state) VALUES ($1,$2,0,$3::jsonb)',[old.runId,old.ownerId,JSON.stringify(old)]);
+  await assert.rejects(store.createRun(oldOwner,'fixture-unsupported-replacement'),/unsupported_save_version/);
+  const count=await pool.query('SELECT count(*)::int AS count FROM ascension_player_runs WHERE owner_subject=$1',[oldOwner.subject]);assert.equal(count.rows[0].count,1);
  });
  await t.test('a new Node process restores exactly the same player-visible state from PostgreSQL',async()=>{
   const workerEnvironment={...process.env,WORLD_RESUME_WORKER:'1'};
