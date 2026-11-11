@@ -39,9 +39,9 @@ export function createWorldGameHandler({adapter,store,appOrigin,uiOrigin,newRunI
  if(app.origin!==appOrigin||ui.origin!==uiOrigin||![app,ui].every(x=>x.protocol==='https:'||(['127.0.0.1','localhost'].includes(x.hostname)&&x.protocol==='http:')))throw TypeError('Exact approved origins required');
  const identity=createAscensionBridgeSessionResolver({adapter});
  return async(req,res)=>{
-  const url=new URL(req.url,appOrigin);
-  if(!ROUTES.has(url.pathname))return false;
   const send=(status,value)=>{res.writeHead(status,{'Content-Type':'application/json','Cache-Control':'no-store','X-Content-Type-Options':'nosniff'});res.end(JSON.stringify(value));return true;};
+  let url;try{url=new URL(req.url,appOrigin);}catch{return send(400,{error:'invalid_url'});}
+  if(!ROUTES.has(url.pathname))return false;
   res.setHeader('Vary','Origin');
   if(url.origin!==appOrigin||req.headers.host!==app.host||req.headers.origin!==uiOrigin)return send(403,{error:'origin_denied'});
   res.setHeader('Access-Control-Allow-Origin',uiOrigin);res.setHeader('Access-Control-Allow-Credentials','true');

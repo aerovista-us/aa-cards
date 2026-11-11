@@ -37,4 +37,13 @@ test('world authorization denies action and no state is updated',async()=>{
  await assert.rejects(s.commitAction(alice,'office-1',{expectedRevision:0,command:{type:'move',dx:1,dy:0}}),e=>e.status===403);
  assert.equal((await s.loadRun(alice,'office-1')).revision,0);
 });
+test('failed rollback discards the connection and preserves the original failure',async()=>{
+ const {pool}=fakePool(),client=await pool.connect();let discarded;
+ const query=client.query.bind(client);
+ client.query=async(sql,args)=>{if(sql==='ROLLBACK')throw Error('fixture-cleanup-failure');return query(sql,args);};
+ client.release=error=>{discarded=error;};
+ const store=createOwnerWorldInteractionStore({pool,authorizeWorld:async()=>false});
+ await assert.rejects(store.createRun(alice,'office-1'),e=>e.status===403&&e.message==='world_denied');
+ assert.equal(discarded.message,'fixture-cleanup-failure');
+});
 

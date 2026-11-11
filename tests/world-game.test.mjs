@@ -58,6 +58,13 @@ test('main-game HTTP create → action → resume returns committed facts withou
  for(const hidden of ['ownerId','objectState','npcMemory','player-a',csrf,'fixture-a'])assert.equal(encoded.includes(hidden),false);
  assert.equal(moved.headers.get('cache-control'),'no-store');
 });
+test('malformed request target returns a bounded denial rather than rejecting the router',async()=>{
+ const handler=createWorldGameHandler({adapter:{auth:{resolveSession:async()=>null},identity:{describe:async()=>null}},
+  store:memoryStore(),appOrigin:'https://ascension-auth.aerovista.us',uiOrigin:'https://ascension.aerovista.us'});
+ let status,body;
+ const handled=await handler({url:'http://[',headers:{}},{writeHead:s=>{status=s;},end:b=>{body=JSON.parse(b);}});
+ assert.equal(handled,true);assert.equal(status,400);assert.deepEqual(body,{error:'invalid_url'});
+});
 test('cross-owner, permission, revoked and mismatching identity contexts fail closed',async t=>{
  const f=await fixture(t),created=await f.send('/api/game/world/runs',{method:'POST',value:{}});
  const value={runId:created.body.view.runId,expectedRevision:0,command:{type:'move',dx:1,dy:0}};
