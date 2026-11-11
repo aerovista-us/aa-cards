@@ -15,6 +15,9 @@ if(process.env.ASCENSION_DISPOSABLE_PG!=='1'||process.env.PGHOST!=='127.0.0.1'||
  !process.env.OFFICE_PHASER_PATH||!process.env.OFFICE_ARTIFACT_DIR)throw Error('Explicit disposable browser configuration required');
 const require=createRequire(import.meta.url),{Pool}=require(process.env.WORLD_PG_MODULE_PATH),{chromium}=require(process.env.OFFICE_PLAYWRIGHT_PATH);
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..'),gameRoot=resolve(root,'game'),pool=new Pool({max:5});
+const resolution=process.env.OFFICE_GLITCH_CHOICE||'report';
+if(!['report','conceal'].includes(resolution))throw Error('Explicit supported Glitch choice required');
+const placement=resolution==='report'?'memory':'present';
 const owner={subject:'fixture-office-player'},csrf='fixture-office-only-csrf-123456789';
 let active=true,handler,browser,server,uiServer,page,origin,uiOrigin;
 const store=createOwnerWorldInteractionStore({pool,authorizeWorld:async identity=>identity.subject===owner.subject});
@@ -58,7 +61,7 @@ try{
  const ready=()=>page.waitForFunction(()=>document.querySelector('#office-scene').dataset.phase==='ready'&&document.querySelector('#office-scene').dataset.animating!=='true');
  const position=(x,y)=>page.waitForFunction(([x,y])=>document.querySelector('#position').dataset.x===String(x)&&document.querySelector('#position').dataset.y===String(y)&&document.querySelector('#office-scene').dataset.phase==='ready'&&document.querySelector('#office-scene').dataset.animating!=='true',[x,y]);
  const action=async id=>{await page.locator('[data-action="'+id+'"]').click();await ready();};
- const coords={records:[4,5],caseworker:[4,2],stat:[1,3],rolodex:[6,3],exit:[4,1]};
+ const coords={records:[4,5],caseworker:[4,2],stat:[1,3],rolodex:[6,3],exit:[4,1],attendant:[4,3],inspection:[2,3],destination:[4,1],return:[4,5]};
  const visit=async id=>{await page.locator('[data-marker="'+id+'"]').click();await position(...coords[id]);};
  await page.goto(uiOrigin+'/game/',{waitUntil:'networkidle'});
  await page.getByRole('button',{name:'Begin Billy’s intake',exact:true}).click();await ready();
@@ -69,36 +72,75 @@ try{
  await page.keyboard.press('ArrowLeft');await position(4,4);
  await page.getByLabel('Reduce motion').check();
  await action('inspect-notice');
- await page.getByText('Accessible Office map',{exact:true}).click();
+ await page.getByText('Accessible area map',{exact:true}).click();
  await visit('records');await action('take-records');
  await visit('caseworker');await action('talk-introduction');
  await visit('stat');await action('use-stat');
  const assessment=await page.locator('#resonance').innerText();assert.match(assessment,/^(?:[1-9]|1[0-9]|20) \/ 20$/);
  await visit('caseworker');await action('talk-placement');
- await visit('rolodex');await action('choose-memory');
+ await visit('rolodex');await action('choose-'+placement);
  assert.match(await page.locator('#glitch-status').innerText(),/Anomaly observed/);
- await action('inspect-rolodex');await action('resolve-report');
+ await action('inspect-rolodex');await action('resolve-'+resolution);
  await page.locator('#intake-complete').waitFor({state:'visible'});
  assert.equal(await page.locator('#inventory [data-item="placement-pass"]').count(),1);
  const before=projectWorldGame(owner,await store.loadCurrentRun(owner));
- assert.equal(before.mission.complete,true);assert.equal(before.caseFile.glitch.resolution,'report');
+ assert.equal(before.mission.complete,true);assert.equal(before.caseFile.glitch.resolution,resolution);
  await page.reload({waitUntil:'networkidle'});await ready();
  await page.locator('#office-scene canvas').waitFor({state:'visible'});
  assert.equal(await page.locator('#resonance').innerText(),assessment);
  assert.equal(await page.evaluate(()=>localStorage.length),0);
  assert.deepEqual(projectWorldGame(owner,await store.loadCurrentRun(owner)),before);
- await page.getByText('Accessible Office map',{exact:true}).click();
+ await page.getByText('Accessible area map',{exact:true}).click();
  await visit('stat');assert.equal(await page.locator('[data-action="use-stat"]').count(),0);
  await visit('caseworker');await action('talk-glitch');
- assert.match(await page.locator('#latest-event').innerText(),/discrepancy report/);
+ assert.match(await page.locator('#latest-event').innerText(),resolution==='report'?/discrepancy report/:/unusually warm/);
  await visit('exit');await action('inspect-exit');
- await page.getByText('Accessible Office map',{exact:true}).click();
+ await page.getByText('Accessible area map',{exact:true}).click();
  await mkdir(process.env.OFFICE_ARTIFACT_DIR,{recursive:true});
- await page.screenshot({path:resolve(process.env.OFFICE_ARTIFACT_DIR,'main-office-desktop.png'),fullPage:true});
+ await page.screenshot({path:resolve(process.env.OFFICE_ARTIFACT_DIR,'main-office-'+resolution+'-desktop.png'),fullPage:true});
  await page.setViewportSize({width:390,height:844});await page.waitForTimeout(150);
  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth),true);
  await page.getByRole('button',{name:'Move south',exact:true}).click();await position(4,2);
- await page.screenshot({path:resolve(process.env.OFFICE_ARTIFACT_DIR,'main-office-mobile.png'),fullPage:true});
+ await page.screenshot({path:resolve(process.env.OFFICE_ARTIFACT_DIR,'main-office-'+resolution+'-mobile.png'),fullPage:true});
+ // Enter through an actual committed area transition; both Glitch paths run separately.
+ const area=async id=>{await page.waitForFunction(id=>document.querySelector('#office-scene').dataset.world===id&&document.querySelector('#office-scene').dataset.sceneReady==='true',id);await ready();await page.locator('#office-scene canvas').waitFor({state:'visible'});};
+ await action('enter-hallway');await area('afterlife-hallway');await position(4,5);
+ assert.equal(await page.locator('#scene-title').innerText(),'The Hallway');
+ const entered=projectWorldGame(owner,await store.loadCurrentRun(owner));
+ assert.equal(entered.hallway.mode,resolution==='report'?'assistance':'scrutiny');
+ assert.deepEqual(entered.caseFile,before.caseFile);
+ await page.getByText('Accessible area map',{exact:true}).click();
+ await visit('destination');await action('inspect-destination');
+ assert.equal((await store.loadCurrentRun(owner)).state.hallway.destinationRead,false);
+ await visit('attendant');await action('talk-attendant');
+ if(resolution==='conceal'){
+  assert.match(await page.locator('#latest-event').innerText(),/file is flagged/);
+  assert.equal((await store.loadCurrentRun(owner)).state.hallway.routeRevealed,false);
+  await visit('inspection');await action('use-inspection');
+  assert.equal(await page.locator('[data-action="use-inspection"]').count(),0);
+  await page.reload({waitUntil:'networkidle'});await area('afterlife-hallway');
+  assert.equal((await store.loadCurrentRun(owner)).state.hallway.inspectionComplete,true);
+  await page.getByText('Accessible area map',{exact:true}).click();
+  await visit('attendant');await action('talk-attendant');
+  assert.match(await page.locator('#latest-event').innerText(),/watch note stays/);
+ }else assert.match(await page.locator('#latest-event').innerText(),/asked me to help/);
+ await visit('destination');await action('inspect-destination');
+ assert.match(await page.locator('#latest-event').innerText(),placement==='memory'?/Archive of Echoes/:/Veilway/);
+ const completed=projectWorldGame(owner,await store.loadCurrentRun(owner));
+ assert.equal(completed.mission.complete,true);assert.equal(completed.hallway.destinationRead,true);
+ assert.equal(completed.caseFile.glitch.heat,before.caseFile.glitch.heat);
+ await page.reload({waitUntil:'networkidle'});await area('afterlife-hallway');
+ assert.deepEqual(projectWorldGame(owner,await store.loadCurrentRun(owner)),completed);
+ assert.equal(await page.evaluate(()=>localStorage.length),0);
+ await page.screenshot({path:resolve(process.env.OFFICE_ARTIFACT_DIR,'main-hallway-'+resolution+'-mobile.png'),fullPage:true});
+ await page.setViewportSize({width:1440,height:1100});await page.waitForTimeout(150);
+ await page.screenshot({path:resolve(process.env.OFFICE_ARTIFACT_DIR,'main-hallway-'+resolution+'-desktop.png'),fullPage:true});
+ await page.getByText('Accessible area map',{exact:true}).click();
+ await visit('return');await action('return-office');await area('afterlife-placement-office');
+ assert.equal(await page.locator('#resonance').innerText(),assessment);
+ await action('enter-hallway');await area('afterlife-hallway');
+ assert.deepEqual((await store.loadCurrentRun(owner)).state.hallway,completed.hallway);
+ assert.equal(await page.locator('#inventory [data-item="placement-pass"]').count(),1);
  // Another executor commits while this browser retains an older revision.
  const current=await store.loadCurrentRun(owner),safe=projectWorldGame(owner,current).actions.find(a=>a.command.type==='move');
  await store.commitAction(owner,current.id,{expectedRevision:current.revision,command:safe.command});
@@ -117,10 +159,10 @@ try{
  for(const request of requests.filter(r=>r.method==='POST'&&new URL(r.url).pathname==='/api/game/world/actions'))
   assert.deepEqual(Object.keys(JSON.parse(request.body)).sort(),['command','expectedRevision','runId']);
  console.log(JSON.stringify({scope:'isolated-main-office-browser-fixture',scene:'9x7',intake_complete:true,
-  records_inventory:true,assessment_persisted_once:true,placement:'memory',glitch:'reported',reload_equal:true,
+  records_inventory:true,assessment_persisted_once:true,placement,glitch:resolution,hallway_encounter:completed.hallway.mode,hallway_complete:true,return_reentry_persisted:true,reload_equal:true,
   mobile_no_overflow:true,stale_revision_denied:true,inactive_session_view_cleared:true,page_errors:errors.length,production_activation:false}));
 }catch(error){
- if(page&&process.env.OFFICE_ARTIFACT_DIR){await mkdir(process.env.OFFICE_ARTIFACT_DIR,{recursive:true});await page.screenshot({path:resolve(process.env.OFFICE_ARTIFACT_DIR,'office-failure.png'),fullPage:true}).catch(()=>{});}
+ if(page&&process.env.OFFICE_ARTIFACT_DIR){await mkdir(process.env.OFFICE_ARTIFACT_DIR,{recursive:true});await page.screenshot({path:resolve(process.env.OFFICE_ARTIFACT_DIR,'office-'+resolution+'-failure.png'),fullPage:true}).catch(()=>{});}
  throw error;
 }finally{
  await browser?.close();if(uiServer){uiServer.closeAllConnections();await new Promise(resolve=>uiServer.close(resolve));}if(server){server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}await pool.end();

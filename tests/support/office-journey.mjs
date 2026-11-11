@@ -40,3 +40,22 @@ export async function completeClient(client,{placement='memory',resolution='repo
  await client.act('inspect-rolodex');await client.act('resolve-'+resolution);
  assert.equal(client.snapshot().phase,'ready');assert.equal(client.snapshot().view.mission.complete,true);
 }
+export function enterHallwayState(state){return applyWorldAction(walkState(state,'exit'),{type:'travel',target:'exit'}).state;}
+export function completeHallwayState(state){
+ state=applyWorldAction(walkState(state,'attendant'),{type:'talk',target:'attendant',topic:'introduction'}).state;
+ if(state.hallway.mode==='scrutiny'){
+  state=applyWorldAction(walkState(state,'inspection'),{type:'use',target:'inspection'}).state;
+  state=applyWorldAction(walkState(state,'attendant'),{type:'talk',target:'attendant',topic:'introduction'}).state;
+ }
+ return applyWorldAction(walkState(state,'destination'),{type:'inspect',target:'destination'}).state;
+}
+export async function completeHallwayClient(client){
+ await walkClient(client,'exit');await client.act('enter-hallway');
+ await walkClient(client,'attendant');await client.act('talk-attendant');
+ if(client.snapshot().view.hallway.mode==='scrutiny'){
+  await walkClient(client,'inspection');await client.act('use-inspection');
+  await walkClient(client,'attendant');await client.act('talk-attendant');
+ }
+ await walkClient(client,'destination');await client.act('inspect-destination');
+ assert.equal(client.snapshot().view.mission.complete,true);
+}

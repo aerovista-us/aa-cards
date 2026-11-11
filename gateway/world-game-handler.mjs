@@ -7,7 +7,7 @@ const ROUTES=new Set(['/api/game/world','/api/game/world/runs','/api/game/world/
 const KNOWN=new Set(['authentication_required','world_denied','not_found','run_exists','stale_revision','invalid_run','invalid_action',
  'blocked','invalid_move','target_not_in_reach','already_open','not_openable','npc_not_in_reach','unsupported_topic','unsupported_action',
  'already_taken','assessment_already_recorded','intake_prerequisites','placement_not_authorized','placement_already_recorded',
- 'unsupported_choice','glitch_not_investigated','glitch_already_resolved']);
+ 'unsupported_choice','glitch_not_investigated','glitch_already_resolved','intake_incomplete','unsupported_destination','inspection_not_required','inspection_already_recorded']);
 const BODY_STATUS=Object.freeze({json_required:415,request_too_large:413,invalid_json:400,request_timeout:408});
 const error=(code,status)=>Object.assign(Error(code),{status});
 function cookie(raw,name){

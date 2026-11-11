@@ -49,8 +49,10 @@ jobs:
         run: node --test tests/world-game.pg-ci.mjs
       - name: Install isolated Chromium
         run: node "$OFFICE_PLAYWRIGHT_PATH/cli.js" install --with-deps chromium
-      - name: Play the committed 9×7 Office in desktop and mobile browsers
-        run: node scripts/office-browser-accept.mjs
+      - name: Play both Glitch paths through the Office and Hallway
+        run: |
+          node scripts/office-browser-accept.mjs
+          OFFICE_GLITCH_CHOICE=conceal node scripts/office-browser-accept.mjs
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:

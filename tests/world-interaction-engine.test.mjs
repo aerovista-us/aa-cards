@@ -6,7 +6,7 @@ import {walkState,completeState,stateView} from './support/office-journey.mjs';
 const run=seedString=>createOfficeRun({ownerId:'player-a',runId:'run-1',...(seedString?{seedString}:{})});
 const act=(s,type,rest={})=>applyWorldAction(s,{type,...rest}).state;
 test('main Office is 9×7 and Billy starts at the approved intake position',()=>{
- const s=run();assert.equal(s.schemaVersion,2);assert.equal(OFFICE_WORLD.width,9);assert.equal(OFFICE_WORLD.height,7);
+ const s=run();assert.equal(s.schemaVersion,3);assert.equal(OFFICE_WORLD.width,9);assert.equal(OFFICE_WORLD.height,7);
  assert.deepEqual(s.player,{x:4,y:4,name:'Billy'});assert.equal(s.ownerId,'player-a');
  for(const id of ['records','stat','rolodex','exit'])assert.ok(OFFICE_WORLD.objects[id]);
 });

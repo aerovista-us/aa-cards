@@ -20,21 +20,22 @@ export function loadOfficePhaser(){
  return library;
 }
 export function createOfficePresentation({parent,onMove,onAnimation,onUnavailable,reduceMotion=()=>false}){
- let game=null,scene=null,snapshot=null,epoch=0,animating=false,settled=Promise.resolve();
+ let game=null,scene=null,snapshot=null,worldId=null,epoch=0,animating=false,settled=Promise.resolve();
  const motion=value=>{animating=value;parent.dataset.animating=String(value);onAnimation?.(value);};
  function sceneClass(Phaser){return class extends Phaser.Scene{
   constructor(){super('MainAfterlifeOffice');this.view=null;this.finish=null;}
   create(){scene=this;this.cameras.main.setBackgroundColor('#0a1321');this.apply(snapshot);parent.dataset.sceneReady='true';}
   drawRoom(view){
-   const g=this.add.graphics().setDepth(1);
-   g.fillStyle(0x182b3c);g.fillRoundedRect(LEFT-14,TOP-14,9*CELL+28,7*CELL+28,18);
-   g.lineStyle(2,0x85765b,.9);g.strokeRoundedRect(LEFT-14,TOP-14,9*CELL+28,7*CELL+28,18);
+   const hallway=view.world.id==='afterlife-hallway',g=this.add.graphics().setDepth(1);
+   this.cameras.main.setBackgroundColor(hallway?'#101124':'#0a1321');
+   g.fillStyle(hallway?0x282842:0x182b3c);g.fillRoundedRect(LEFT-14,TOP-14,view.world.width*CELL+28,view.world.height*CELL+28,18);
+   g.lineStyle(2,0x85765b,.9);g.strokeRoundedRect(LEFT-14,TOP-14,view.world.width*CELL+28,view.world.height*CELL+28,18);
    for(let y=0;y<view.world.height;y++)for(let x=0;x<view.world.width;x++){
     const p=point(x,y),open=view.world.cells[y*view.world.width+x].walkable;
     g.fillStyle(open?((x+y)%2?0x304659:0x2a3e51):0x172332);
     g.fillRoundedRect(p.x-CELL/2+2,p.y-CELL/2+2,CELL-4,CELL-4,3);
     g.lineStyle(1,open?0x506a7b:0x344152,.65);g.strokeRect(p.x-CELL/2+3,p.y-CELL/2+3,CELL-6,CELL-6);
-    if(!open&&y>0&&y<6&&(x===2||x===5||x===6)){
+    if(!hallway&&!open&&y>0&&y<6&&(x===2||x===5||x===6)){
      g.fillStyle(0x4b5d68);g.fillRoundedRect(p.x-22,p.y-26,44,52,4);
      for(let row=0;row<3;row++){
       g.fillStyle(0x354a5b);g.fillRect(p.x-18,p.y-21+row*16,36,12);
@@ -42,20 +43,23 @@ export function createOfficePresentation({parent,onMove,onAnimation,onUnavailabl
      }
     }
    }
-   for(const x of [1,7]){
+   if(!hallway)for(const x of [1,7]){
     const a=point(x,3),b=point(x,4);g.lineStyle(5,0xac8b5a,.7);g.lineBetween(a.x-26,a.y-27,b.x-26,b.y+27);
     g.fillStyle(0xdfc592);g.fillCircle(a.x-26,a.y-27,5);g.fillCircle(b.x-26,b.y+27,5);
    }
-   this.add.text(WIDTH/2,31,'DEPARTMENT OF POSTHUMOUS AFFAIRS',{fontFamily:'monospace',fontSize:'13px',color:'#e6c992'}).setOrigin(.5);
-   this.add.text(28,HEIGHT-20,'AFTERLIFE / PLACEMENT OFFICE',{fontFamily:'monospace',fontSize:'11px',color:'#95b3c2'});
+   if(hallway){
+    for(let y=1;y<=5;y++){const p=point(4,y);g.fillStyle(0x9c8ccd,.65);g.fillCircle(p.x-29,p.y,3);g.fillCircle(p.x+29,p.y,3);}
+   }
+   this.add.text(WIDTH/2,31,hallway?'THE HALLWAY / ROUTES IN REVISION':'DEPARTMENT OF POSTHUMOUS AFFAIRS',{fontFamily:'monospace',fontSize:'13px',color:'#e6c992'}).setOrigin(.5);
+   this.add.text(28,HEIGHT-20,hallway?'TRANSIT / KEEP YOUR FILE CLOSE':'AFTERLIFE / PLACEMENT OFFICE',{fontFamily:'monospace',fontSize:'11px',color:'#95b3c2'});
    this.add.text(WIDTH-28,HEIGHT-20,'9 × 7',{fontFamily:'monospace',fontSize:'11px',color:'#95b3c2'}).setOrigin(1,0);
    this.markerArt=new Map();
-   const styles={records:[0xdcc99f,'▤'],stat:[0x82ded5,'◇'],rolodex:[0xc1a0ef,'R'],exit:[0xf1b293,'↟'],notice:[0x9ab8cc,'!'],caseworker:[0xf1d18b,'C']};
+   const styles={records:[0xdcc99f,'▤'],stat:[0x82ded5,'◇'],rolodex:[0xc1a0ef,'R'],exit:[0xf1b293,'↟'],notice:[0x9ab8cc,'!'],caseworker:[0xf1d18b,'C'],attendant:[0xc6b5f1,'A'],inspection:[0xf1b56b,'?'],routes:[0x8edbd1,'↔'],destination:[0xc1a0ef,'◇'],return:[0xdcc99f,'↟']};
    for(const marker of view.markers){
     const p=point(marker.x,marker.y),[color,glyph]=styles[marker.id]||[0xdcc99f,'·'];
     const halo=this.add.circle(p.x,p.y,30,color,.14).setStrokeStyle(1,color,.8).setDepth(20);
-    if(marker.id==='caseworker'){
-     this.add.ellipse(p.x,p.y+8,29,30,0xcab897).setStrokeStyle(2,0x6c5261).setDepth(21);
+    if(marker.kind==='npc'){
+     this.add.ellipse(p.x,p.y+8,29,30,hallway?0x9185b4:0xcab897).setStrokeStyle(2,0x6c5261).setDepth(21);
      this.add.circle(p.x,p.y-14,12,0xd8b293).setStrokeStyle(2,0x403637).setDepth(22);
      this.add.rectangle(p.x+11,p.y+6,16,22,0xf2e0b5).setAngle(-9).setDepth(23);
     }else{
@@ -106,6 +110,8 @@ export function createOfficePresentation({parent,onMove,onAnimation,onUnavailabl
    for(const [id,art]of this.markerArt){
     const available=next.actions.some(a=>a.command.target===id);
     art.halo.setAlpha(current.phase==='ready'&&available?1:.4);
+    if(id==='inspection')art.plate.setFillStyle(next.hallway?.inspectionComplete?0x275545:next.hallway?.mode==='scrutiny'?0x674926:0x192a3a);
+    if(id==='destination')art.plate.setFillStyle(next.hallway?.routeRevealed?0x4b315d:0x192a3a);
     if(id==='rolodex')art.plate.setFillStyle(next.caseFile.glitch.observed?0x4b315d:0x192a3a);
    }
   }
@@ -114,11 +120,13 @@ export function createOfficePresentation({parent,onMove,onAnimation,onUnavailabl
   get animating(){return animating;},whenSettled:()=>settled,
   async update(next){
    snapshot=next;
-   if(!next.view){epoch++;scene?.finish?.();game?.destroy(true);game=null;scene=null;parent.replaceChildren();delete parent.dataset.sceneReady;delete parent.dataset.sceneRevision;motion(false);return;}
+   if(!next.view){epoch++;scene?.finish?.();game?.destroy(true);game=null;scene=null;worldId=null;parent.replaceChildren();delete parent.dataset.sceneReady;delete parent.dataset.sceneRevision;motion(false);return;}
+   if(game&&worldId!==next.view.world.id){epoch++;scene?.finish?.();game.destroy(true);game=null;scene=null;worldId=null;parent.replaceChildren();delete parent.dataset.sceneReady;motion(false);}
    if(game){scene?.apply(next);return;}
    const ticket=epoch;
    try{
     const Phaser=await loadOfficePhaser();if(ticket!==epoch||!snapshot?.view||game)return;
+    worldId=snapshot.view.world.id;
     game=new Phaser.Game({type:Phaser.AUTO,parent,width:WIDTH,height:HEIGHT,backgroundColor:'#0a1321',
      render:{antialias:true},scene:[sceneClass(Phaser)],scale:{mode:Phaser.Scale.FIT,autoCenter:Phaser.Scale.CENTER_BOTH,width:WIDTH,height:HEIGHT}});
    }catch{if(ticket===epoch)onUnavailable?.();}

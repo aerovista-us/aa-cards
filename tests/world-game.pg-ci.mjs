@@ -11,8 +11,9 @@ import {fileURLToPath} from 'node:url';
 import {createOwnerWorldInteractionStore} from '../gateway/owner-world-interaction-store.mjs';
 import {createWorldGameHandler} from '../gateway/world-game-handler.mjs';
 import {projectWorldGame} from '../gateway/world-game-view.mjs';
+import {createOfficeRun} from '../gateway/world-interaction-engine.mjs';
 import {createWorldGameClient} from '../game/world-client.mjs';
-import {completeClient} from './support/office-journey.mjs';
+import {completeClient,completeHallwayClient,completeState} from './support/office-journey.mjs';
 if(process.env.ASCENSION_DISPOSABLE_PG!=='1'||process.env.PGHOST!=='127.0.0.1'||
  process.env.PGDATABASE!=='ascension_world_ci'||process.env.PGUSER!=='ascension_ci'||!process.env.WORLD_PG_MODULE_PATH)
  throw Error('Explicit disposable loopback PostgreSQL configuration required');
@@ -58,9 +59,10 @@ if(process.env.WORLD_RESUME_WORKER==='1'){
   await client.refresh();assert.equal(client.snapshot().phase,'new_run');
   await client.begin();assert.equal(client.snapshot().phase,'ready');
   await completeClient(client,{resolution:'conceal'});
+  await completeHallwayClient(client);
   accepted=client.snapshot().view;
   assert.equal(accepted.mission.complete,true);assert.ok(accepted.revision>7);
-  assert.equal(accepted.caseFile.glitch.resolution,'conceal');assert.equal(accepted.world.width,9);
+  assert.equal(accepted.caseFile.glitch.resolution,'conceal');assert.equal(accepted.world.width,9);assert.equal(accepted.world.id,'afterlife-hallway');assert.equal(accepted.hallway.inspectionComplete,true);
   const resumed=makeClient();await resumed.refresh();assert.deepEqual(resumed.snapshot().view,accepted);
  });
  await t.test('a new Node process restores exactly the same player-visible state from PostgreSQL',async()=>{
@@ -93,6 +95,16 @@ if(process.env.WORLD_RESUME_WORKER==='1'){
   const failed=await post(value);assert.equal(failed.status,503);
   assert.equal(JSON.stringify(failed.body).includes('fixture-private-database-detail'),false);
   handler=build(store);assert.deepEqual(await store.loadCurrentRun(identity),before);
+ });
+ await t.test('prior schema-2 completed Office save upgrades without reset and persists on the next action',async()=>{
+  const legacyOwner={subject:'fixture-legacy-player'},original=completeState(createOfficeRun({ownerId:legacyOwner.subject,runId:'fixture-legacy-run',seedString:'legacy-seed'}),{resolution:'conceal'});
+  const legacy=structuredClone(original);legacy.schemaVersion=2;delete legacy.hallway;
+  await pool.query('INSERT INTO ascension_player_runs (id,owner_subject,revision,state) VALUES ($1,$2,$3,$4::jsonb)',[legacy.runId,legacy.ownerId,legacy.revision,JSON.stringify(legacy)]);
+  const loaded=await store.loadCurrentRun(legacyOwner);assert.deepEqual(loaded.state,original);
+  const unchanged=await pool.query('SELECT state FROM ascension_player_runs WHERE id=$1',[legacy.runId]);assert.deepEqual(unchanged.rows[0].state,legacy);
+  await store.commitAction(legacyOwner,legacy.runId,{expectedRevision:legacy.revision,command:{type:'inspect',target:'rolodex'}});
+  const migrated=await store.loadCurrentRun(legacyOwner);assert.equal(migrated.state.schemaVersion,3);assert.equal(migrated.revision,legacy.revision+1);
+  assert.deepEqual(migrated.state.rng,original.rng);assert.deepEqual(migrated.state.inventory,original.inventory);assert.deepEqual(migrated.state.consequences,original.consequences);
  });
  await t.test('inactive identity clears the client view without changing the saved run',async()=>{
   const before=await store.loadCurrentRun(identity);

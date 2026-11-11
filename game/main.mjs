@@ -25,6 +25,10 @@ function render(current){
  $('connection-dot').classList.toggle('ready',ready);
  $('save-revision').textContent=view?'Saved revision '+view.revision:'';
  $('office-scene').dataset.phase=current.phase;
+ $('office-scene').dataset.world=view?.world.id||'';
+ $('scene-title').textContent=view?.world.label||'Placement Office';
+ $('scene-area').textContent=view?.world.id==='afterlife-hallway'?'TRANSIT / THE HALLWAY':'AFTERLIFE / INTAKE';
+ $('mission-title').textContent=view?.mission.title||'Complete your intake';
  $('scene-cover').hidden=!!view;
  $('cover-message').textContent=current.message;
  $('begin-game').hidden=current.phase!=='new_run';
@@ -32,6 +36,9 @@ function render(current){
  $('position').textContent=view?'Billy · '+view.player.x+', '+view.player.y:'Awaiting your case file';
  $('position').dataset.x=view?String(view.player.x):'';$('position').dataset.y=view?String(view.player.y):'';
  $('intake-complete').hidden=!view?.mission.complete;
+ $('intake-complete').textContent=view?.world.id==='afterlife-hallway'?'Hallway route confirmed. The next realm awaits.':'Intake complete. Your Hallway pass is ready.';
+ $('hallway-status').textContent=view?.hallway?(view.hallway.mode==='assistance'?'Assistance filed':'Scrutiny recorded')+(view.hallway.routeRevealed?' · Route revealed':view.hallway.inspectionComplete?' · Inspection filed':' · Speak to the attendant'):'';
+ $('hallway-status').hidden=!view?.hallway;
  $('mission-progress').textContent=view?view.mission.steps.filter(s=>s.complete).length+' / '+view.mission.steps.length+' filed':'Waiting for saved progress';
  const steps=$('mission-steps');steps.replaceChildren();
  for(const step of view?.mission.steps||[]){const item=document.createElement('li');item.textContent=step.label;item.classList.toggle('done',step.complete);steps.append(item);}
@@ -74,9 +81,9 @@ async function act(id){
 }
 async function navigate(target){
  if(!canInput())return;
- const ticket=++navigation;
+ const ticket=++navigation,navigationWorld=client.snapshot().view.world.id;
  for(let steps=0;steps<128&&ticket===navigation;steps++){
-  const current=client.snapshot();if(current.phase!=='ready')return;
+  const current=client.snapshot();if(current.phase!=='ready'||current.view.world.id!==navigationWorld)return;
   if(current.view.player.x===target.x&&current.view.player.y===target.y){$('interaction-actions').querySelector('button')?.focus();return;}
   const move=nextOfficeMove(current.view,target);
   if(!move){$('connection-status').textContent='That tile is not reachable from here.';return;}

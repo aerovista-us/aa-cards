@@ -1,11 +1,13 @@
 // Authored main-game intake rules. This is not a recovered-v4 parity claim.
 import {randomBytes} from 'node:crypto';
 import {OFFICE_WORLD,officeCellEnabled,TOPICS,PLACEMENTS,ITEMS,assessmentFor} from './office-layout.mjs';
+import {HALLWAY_WORLD,hallwayCellEnabled} from './hallway-layout.mjs';
+import {enterHallway,applyHallwayAction} from './hallway-rules.mjs';
 import {createPersistentRng} from './persistent-rng.mjs';
 const copy=x=>structuredClone(x);
 const id=x=>typeof x==='string'&&/^[A-Za-z0-9:_-]{1,160}$/.test(x);
 const near=(a,b)=>Math.abs(a.x-b.x)+Math.abs(a.y-b.y)<=1;
-const EVENTS=new Set(['moved','inspected','npc_spoke','records_taken','assessment_completed','placement_selected','glitch_observed','glitch_resolved']);
+const EVENTS=new Set(['moved','inspected','npc_spoke','records_taken','assessment_completed','placement_selected','glitch_observed','glitch_resolved','area_entered','hallway_spoke','file_inspected']);
 export function intakeSteps(s){return [
  {id:'notice',label:'Read the intake notice',complete:s.objectState.notice.read},
  {id:'records',label:'Collect your case file at Records',complete:s.objectState.records.taken},
@@ -16,12 +18,12 @@ export function intakeSteps(s){return [
 ];}
 export function createOfficeRun({ownerId,runId,seedString=randomBytes(16).toString('hex')}={}){
  if(!id(ownerId)||!id(runId)||!id(seedString))throw Error('owner_and_run_required');
- return {schemaVersion:2,ownerId,runId,revision:0,location:OFFICE_WORLD.id,
+ return {schemaVersion:3,ownerId,runId,revision:0,location:OFFICE_WORLD.id,
   player:{...OFFICE_WORLD.start,name:'Billy'},objectState:{notice:{read:false},records:{read:false,taken:false}},
   inventory:{},stat:{assessment:null},placementAuthorized:false,placement:null,
   glitch:{observed:false,inspected:false,resolution:null},heat:0,
   rng:{seedString,rngDraws:0},npcMemory:{caseworker:{met:false,topics:[],suspicion:0}},
-  consequences:{hallway:null},events:[]};
+  consequences:{hallway:null},hallway:null,events:[]};
 }
 export function applyWorldAction(saved,command){
  const state=restoreOfficeRun(JSON.stringify(saved),{ownerId:saved?.ownerId}),p=state.player;
@@ -31,7 +33,12 @@ export function applyWorldAction(saved,command){
   const o=Object.hasOwn(OFFICE_WORLD.objects,target)?OFFICE_WORLD.objects[target]:null;
   if(!o||!near(p,o))throw Error('target_not_in_reach');return o;
  };
- switch(command.type){
+ if(state.location===HALLWAY_WORLD.id)event=applyHallwayAction(state,command);
+ else switch(command.type){
+  case 'travel':{
+   if(command.target!=='exit')throw Error('unsupported_destination');
+   event=enterHallway(state,intakeSteps(state).every(s=>s.complete));break;
+  }
   case 'move':{
    const {dx,dy}=command;
    if(!Number.isInteger(dx)||!Number.isInteger(dy)||Math.abs(dx)+Math.abs(dy)!==1)throw Error('invalid_move');
@@ -46,7 +53,7 @@ export function applyWorldAction(saved,command){
     state.glitch.inspected=true;
     event={type:'glitch_observed',text:'Billy’s name appears on both cards. THE MITCH’s stamp flickers underneath. Report the discrepancy, or conceal it and accept the heat.'};
    }else{
-    if(command.target==='exit'&&intakeSteps(state).every(s=>s.complete))text='Intake complete. Your '+PLACEMENTS[state.placement]+' pass is ready. The Hallway attendant will call your number.';
+    if(command.target==='exit'&&intakeSteps(state).every(s=>s.complete))text='Intake complete. Your '+PLACEMENTS[state.placement]+' pass is ready. Your Hallway route is available through the Placement Door.';
     event={type:'inspected',target:command.target,text};
    }
    break;
@@ -116,10 +123,14 @@ export function serializeOfficeRun(state){return JSON.stringify(state);}
 export function restoreOfficeRun(json,{ownerId}={}){
  const s=JSON.parse(json);
  if(!ownerId||s?.ownerId!==ownerId)throw Error('owner_mismatch');
- if(s.schemaVersion!==2)throw Error('unsupported_save_version');
+ // Explicit additive upgrade of the prior candidate: retain every Office fact.
+ if(s.schemaVersion===2){
+  if(s.location!==OFFICE_WORLD.id||Object.hasOwn(s,'hallway'))throw Error('invalid_save');
+  s.schemaVersion=3;s.hallway=null;
+ }else if(s.schemaVersion!==3)throw Error('unsupported_save_version');
  const memory=s.npcMemory?.caseworker,record=s.objectState?.records,a=s.stat?.assessment,g=s.glitch;
- const bad=!id(s.ownerId)||!id(s.runId)||s.location!==OFFICE_WORLD.id||!Number.isSafeInteger(s.revision)||s.revision<0||
-  s.player?.name!=='Billy'||!officeCellEnabled(s.player?.x,s.player?.y)||
+ const bad=!id(s.ownerId)||!id(s.runId)||![OFFICE_WORLD.id,HALLWAY_WORLD.id].includes(s.location)||!Number.isSafeInteger(s.revision)||s.revision<0||
+  s.player?.name!=='Billy'||!(s.location===OFFICE_WORLD.id?officeCellEnabled:hallwayCellEnabled)(s.player?.x,s.player?.y)||
   typeof s.objectState?.notice?.read!=='boolean'||typeof record?.read!=='boolean'||typeof record?.taken!=='boolean'||
   !s.inventory||typeof s.inventory!=='object'||Array.isArray(s.inventory)||Object.keys(s.inventory).some(k=>!Object.hasOwn(ITEMS,k)||s.inventory[k]!==1)||
   (s.inventory['case-file']===1)!==record.taken||(s.inventory['queue-ticket']===1)!==record.taken||
@@ -140,5 +151,14 @@ export function restoreOfficeRun(json,{ownerId}={}){
   s.consequences?.hallway!==(g.resolution==='conceal'?'scrutiny':g.resolution==='report'?'assistance':null)||
   !Array.isArray(s.events)||s.events.length>128||s.events.some(e=>!Number.isSafeInteger(e?.revision)||e.revision<1||e.revision>s.revision||!EVENTS.has(e.type)||typeof e.text!=='string'||e.text.length>512);
  if(bad)throw Error('invalid_save');
+ const h=s.hallway;
+ if(h!==null){
+  if(!h||typeof h!=='object'||Array.isArray(h)||Object.keys(h).length!==5||
+   h.mode!==s.consequences.hallway||!['assistance','scrutiny'].includes(h.mode)||
+   ['attendantMet','inspectionComplete','routeRevealed','destinationRead'].some(k=>typeof h[k]!=='boolean')||
+   !intakeSteps(s).every(step=>step.complete)||(h.inspectionComplete&&(h.mode!=='scrutiny'||!h.attendantMet))||
+   (h.routeRevealed&&(!h.attendantMet||(h.mode==='scrutiny'&&!h.inspectionComplete)))||
+   (h.mode==='assistance'&&h.attendantMet!==h.routeRevealed)||(h.destinationRead&&!h.routeRevealed))throw Error('invalid_save');
+ }else if(s.location===HALLWAY_WORLD.id)throw Error('invalid_save');
  return copy(s);
 }

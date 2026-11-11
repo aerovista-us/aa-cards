@@ -1,6 +1,6 @@
 # Ascension Awaits — Game Development
 
-The public site currently provides Account connection and a mobile-first character preview. Main-game development now follows one server-owned command/save path; see [the implementation and delivery plan](docs/MAIN_GAME_DELIVERY.md) and [main-game client](game/README.md). The draft candidate now connects the 9×7 Afterlife Office, Records inventory, one-time assessment, Rolodex placement and first saved Glitch consequence. The candidate API remains unmounted in production; this is not a gameplay release.
+The public site currently provides Account connection and a mobile-first character preview. Main-game development now follows one server-owned command/save path; see [the implementation and delivery plan](docs/MAIN_GAME_DELIVERY.md) and [main-game client](game/README.md). The draft candidate now connects the 9×7 Afterlife Office, Records inventory, one-time assessment, Rolodex placement and a connected Hallway that consumes the saved assistance/scrutiny consequence. The candidate API remains unmounted in production; this is not a gameplay release.
 
 ## Account connection
 

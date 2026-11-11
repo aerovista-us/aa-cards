@@ -4,7 +4,7 @@ const text=(x,max=256)=>typeof x==='string'&&x.length<=max;
 const integer=x=>Number.isSafeInteger(x)&&x>=0;
 export function normalizeWorldCommand(command){
  if(!command||typeof command!=='object'||Array.isArray(command))throw Error('invalid_command');
- const shapes={move:['type','dx','dy'],inspect:['type','target'],open:['type','target'],take:['type','target'],use:['type','target'],
+ const shapes={move:['type','dx','dy'],inspect:['type','target'],open:['type','target'],travel:['type','target'],take:['type','target'],use:['type','target'],
   talk:['type','target','topic'],choose:['type','target','choice']};
  const keys=Object.hasOwn(shapes,command.type)?shapes[command.type]:null;
  if(!keys||Object.keys(command).length!==keys.length||!Object.keys(command).every(k=>keys.includes(k)))throw Error('invalid_command');
@@ -12,6 +12,7 @@ export function normalizeWorldCommand(command){
   if(!Number.isInteger(command.dx)||!Number.isInteger(command.dy)||Math.abs(command.dx)+Math.abs(command.dy)!==1)throw Error('invalid_command');
   return {type:'move',dx:command.dx,dy:command.dy};
  }
+ if(command.type==='travel'&&!['exit','return'].includes(command.target))throw Error('invalid_command');
  if(!id(command.target))throw Error('invalid_command');
  if(command.type==='talk'){
   if(!['introduction','placement','cabinet','glitch'].includes(command.topic))throw Error('invalid_command');
@@ -25,7 +26,7 @@ export function normalizeWorldCommand(command){
  return {type:command.type,target:command.target};
 }
 export function normalizeWorldView(raw){
- if(raw?.schema!=='ascension.world-view.v2'||!id(raw.runId)||!integer(raw.revision)||
+ if(raw?.schema!=='ascension.world-view.v3'||!id(raw.runId)||!integer(raw.revision)||
   !id(raw.world?.id)||!text(raw.world?.label,80)||!integer(raw.world?.width)||!integer(raw.world?.height)||
   raw.world.width<1||raw.world.height<1||raw.world.width>64||raw.world.height>64||
   !Array.isArray(raw.world.cells)||raw.world.cells.length!==raw.world.width*raw.world.height||
@@ -46,12 +47,15 @@ export function normalizeWorldView(raw){
  if(new Set(steps.map(s=>s.id)).size!==steps.length||raw.mission.complete!==steps.every(s=>s.complete))throw Error('invalid_view');
  const journal=raw.journal.map(e=>{if(!integer(e?.revision)||e.revision>raw.revision||!text(e.text))throw Error('invalid_view');return {revision:e.revision,text:e.text};});
  const f=raw.caseFile,a=f?.assessment,p=f?.placement,g=f?.glitch;
- if(!f||!Array.isArray(f.inventory)||f.inventory.length>3||typeof f.departureReady!=='boolean'||f.departureReady!==raw.mission.complete||
+ if(!f||!Array.isArray(f.inventory)||f.inventory.length>3||typeof f.departureReady!=='boolean'||(raw.world.id==='afterlife-placement-office'&&f.departureReady!==raw.mission.complete)||(raw.world.id==='afterlife-hallway'&&f.departureReady!==true)||
   (a!==null&&(!integer(a?.resonance)||a.resonance<1||a.resonance>20||
    a.trait!==(a.resonance>=15?'Echo Attuned':a.resonance>=8?'Pattern Seeker':'Grounded')||a.glitchInsight!==(a.resonance>=15?1:0)))||
   (p!==null&&(!['memory','present'].includes(p?.id)||p.label!==(p.id==='memory'?'Memory Annex':'Present Hall')))||
   typeof g?.observed!=='boolean'||typeof g?.inspected!=='boolean'||(g.resolution!==null&&!['report','conceal'].includes(g.resolution))||
   !integer(g.heat)||g.heat>2)throw Error('invalid_view');
+ const h=raw.hallway;
+ if(h!==null&&(!h||!['assistance','scrutiny'].includes(h.mode)||['attendantMet','inspectionComplete','routeRevealed','destinationRead'].some(k=>typeof h[k]!=='boolean')))throw Error('invalid_view');
+ if(!['afterlife-placement-office','afterlife-hallway'].includes(raw.world.id)||(raw.world.id==='afterlife-hallway'&&h===null))throw Error('invalid_view');
  const inventory=f.inventory.map(item=>{
   if(!['case-file','queue-ticket','placement-pass'].includes(item?.id)||!text(item.label,80)||item.quantity!==1)throw Error('invalid_view');
   return {id:item.id,label:item.label,quantity:1};
@@ -60,6 +64,7 @@ export function normalizeWorldView(raw){
  return {schema:raw.schema,runId:raw.runId,revision:raw.revision,
   world:{id:raw.world.id,label:raw.world.label,width:raw.world.width,height:raw.world.height,cells},
   player:{x:raw.player.x,y:raw.player.y},markers,actions,
+  hallway:h===null?null:{mode:h.mode,attendantMet:h.attendantMet,inspectionComplete:h.inspectionComplete,routeRevealed:h.routeRevealed,destinationRead:h.destinationRead},
   mission:{title:raw.mission.title,complete:raw.mission.complete,steps},journal,
   caseFile:{inventory,assessment:a===null?null:{resonance:a.resonance,trait:a.trait,glitchInsight:a.glitchInsight},
    placement:p===null?null:{id:p.id,label:p.label},glitch:{observed:g.observed,inspected:g.inspected,resolution:g.resolution,heat:g.heat},departureReady:f.departureReady}};
