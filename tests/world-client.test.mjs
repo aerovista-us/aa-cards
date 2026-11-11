@@ -62,3 +62,32 @@ test('overlapping submissions are blocked and clearing invalidates in-flight res
  finish({status:200,headers:new Headers({'Content-Type':'application/json'}),json:async()=>({view:view(moved)})});
  await pending;assert.equal(f.client.snapshot().phase,'idle');assert.equal(f.client.snapshot().view,null);
 });
+
+test('restoration refresh waits behind an invalidated request and reloads current authorization',async()=>{
+ let finish;
+ const f=setup([()=>new Promise(resolve=>{finish=resolve;}),response(200,active),response(200,{view:view(run)})]);
+ const original=f.client.refresh();f.client.clear();
+ const restored=f.client.refresh(),alsoRestored=f.client.refresh();assert.equal(f.calls.length,1);
+ finish({status:200,headers:new Headers({'Content-Type':'application/json'}),json:async()=>active});
+ await Promise.all([original,restored,alsoRestored]);
+ assert.equal(f.client.snapshot().phase,'ready');assert.equal(f.calls.length,3);
+ assert.equal(f.calls.filter(c=>c.url.endsWith('/api/session')).length,2);
+ assert.equal(f.client.snapshot().view.runId,'run-1');
+});
+test('clearing again cancels a queued restoration without new background requests',async()=>{
+ let finish;
+ const f=setup([()=>new Promise(resolve=>{finish=resolve;})]);
+ const original=f.client.refresh();f.client.clear();const queued=f.client.refresh();f.client.clear();
+ assert.equal((await queued).phase,'idle');
+ finish({status:200,headers:new Headers({'Content-Type':'application/json'}),json:async()=>active});
+ await original;assert.equal(f.client.snapshot().phase,'idle');assert.equal(f.calls.length,1);
+});
+test('restoring behind an invalidated mutation discards its response before reading the saved revision',async()=>{
+ let finish;
+ const moved=applyWorldAction(run,{type:'move',dx:1,dy:0}).state;
+ const f=setup([response(200,active),response(200,{view:view(run)}),()=>new Promise(resolve=>{finish=resolve;}),response(200,active),response(200,{view:view(moved)})]);
+ await f.client.refresh();const mutation=f.client.act('move-east');f.client.clear();const restored=f.client.refresh();
+ finish({status:200,headers:new Headers({'Content-Type':'application/json'}),json:async()=>({view:view(moved)})});
+ await Promise.all([mutation,restored]);assert.equal(f.client.snapshot().phase,'ready');assert.equal(f.client.snapshot().view.revision,1);
+ assert.equal(f.calls.length,5);
+});
