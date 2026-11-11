@@ -45,7 +45,13 @@ if(process.env.RECOVERED_RESUME_WORKER==='1'){
   const failing={...pool,connect:async()=>{
    const c=await pool.connect();return {release:e=>c.release(e),query:async(sql,args)=>{const r=await c.query(sql,args);if(sql.startsWith('UPDATE'))throw Error('injected-after-update');return r;}};
   }};
-  await assert.rejects(build(failing).commitChoice(alice,choiceId,{...command,expectedRevision:1}),/injected-after-update/);
+  // The observation is on cooldown after the first commit. Use an independent
+  // eligible fixture so this assertion actually reaches UPDATE.
+  const rollbackId='recovered-rollback-fixture';
+  await pool.query('INSERT INTO ascension_player_runs(id,owner_subject,revision,state) VALUES($1,$2,0,$3::jsonb)',[rollbackId,alice.subject,JSON.stringify(s)]);
+  const rollbackBefore=await snapshot(rollbackId);
+  await assert.rejects(build(failing).commitChoice(alice,rollbackId,command),/injected-after-update/);
+  assert.deepEqual(await snapshot(rollbackId),rollbackBefore);
   assert.deepEqual(await snapshot(choiceId),before);
  });
  await t.test('cutscenes require finished opening setup, owner, revision and the actual active key',async()=>{
