@@ -58,7 +58,7 @@ test('disposable PostgreSQL service restart: complete committed state and owner 
  const command=view.actions.find(action=>action.command.type==='move')?.command;
  assert.ok(command,'committed journey must remain actionable');
  const input={expectedRevision:run.revision,command};
- assert.equal(await store.loadRun(other,run.id),null);
+ await assert.rejects(store.loadRun(other,run.id),e=>e.status===404);
  await assert.rejects(store.commitAction(other,run.id,input),e=>e.status===404);
  await assert.rejects(store.createRun(identity,'fixture-restart-forbidden-fork'),e=>e.status===409&&e.message==='run_exists');
  assert.equal(digest(await allRows()),before.complete_rows_sha256,'denials must preserve all persisted fields');
