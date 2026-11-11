@@ -1,6 +1,6 @@
-# Ascension Awaits — Cards Frame
+# Ascension Awaits — Game Development
 
-Isolated, mobile-first visual preview for Ascension Awaits cards and Soul Case File.
+The public site currently provides Account connection and a mobile-first character preview. Main-game development now follows one server-owned command/save path; see [the implementation and delivery plan](docs/MAIN_GAME_DELIVERY.md) and [main-game client](game/README.md). The draft candidate now connects the 9×7 Afterlife Office, Records inventory, one-time assessment, Rolodex placement and a connected Hallway that consumes the saved assistance/scrutiny consequence. The candidate API remains unmounted in production; this is not a gameplay release.
 
 ## Account connection
 
@@ -21,3 +21,4 @@ Run `node --test tests/*.test.mjs`. Account UI fixtures cover signed-out/active/
 ## Integration path
 
 Retain the canonical Ascension state/Director/save authority when integrating gameplay. Do not expose private saves or protected API credentials via static hosting.
+

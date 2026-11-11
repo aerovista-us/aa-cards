@@ -1,0 +1,62 @@
+name: Main game transaction checks
+on:
+  pull_request:
+    branches: [main]
+    paths: ['game/**', 'gateway/**', 'tests/world-*.mjs', 'tests/owner-world-interaction-store.test.mjs', 'tests/support/**', 'scripts/office-browser-accept.mjs', '.github/workflows/world-game-checks.yml']
+  push:
+    branches: [main, feat/main-game-world-pipeline]
+permissions:
+  contents: read
+jobs:
+  world-postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: ascension_world_ci
+          POSTGRES_USER: ascension_ci
+          POSTGRES_PASSWORD: disposable-ci-only
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U ascension_ci -d ascension_world_ci"
+          --health-interval 3s --health-timeout 3s --health-retries 15
+    env:
+      ASCENSION_DISPOSABLE_PG: '1'
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGDATABASE: ascension_world_ci
+      PGUSER: ascension_ci
+      PGPASSWORD: disposable-ci-only
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Run existing contracts and main game fixtures
+        run: node --test tests/*.test.mjs gateway/ascension-bridge-identity.test.mjs
+      - name: Install isolated PostgreSQL test client
+        run: |
+          world_pg_dir="$RUNNER_TEMP/ascension-world-pg"
+          mkdir -p "$world_pg_dir"
+          npm install --prefix "$world_pg_dir" --no-audit --no-fund --ignore-scripts pg@8.16.3 playwright@1.58.2 phaser@4.2.1
+          echo "WORLD_PG_MODULE_PATH=$world_pg_dir/node_modules/pg" >> "$GITHUB_ENV"
+          echo "OFFICE_PLAYWRIGHT_PATH=$world_pg_dir/node_modules/playwright" >> "$GITHUB_ENV"
+          echo "OFFICE_PHASER_PATH=$world_pg_dir/node_modules/phaser/dist/phaser.min.js" >> "$GITHUB_ENV"
+          echo "OFFICE_ARTIFACT_DIR=$RUNNER_TEMP/main-office-proof" >> "$GITHUB_ENV"
+      - name: Prove server-owned mission, new-process resume, concurrency and rollback
+        run: node --test tests/world-game.pg-ci.mjs
+      - name: Install isolated Chromium
+        run: node "$OFFICE_PLAYWRIGHT_PATH/cli.js" install --with-deps chromium
+      - name: Play both Glitch paths through the Office and Hallway
+        run: |
+          node scripts/office-browser-accept.mjs
+          OFFICE_GLITCH_CHOICE=conceal node scripts/office-browser-accept.mjs
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: main-office-candidate-${{ github.run_id }}
+          path: ${{ runner.temp }}/main-office-proof/
+          if-no-files-found: ignore
+          retention-days: 7
