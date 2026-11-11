@@ -2,7 +2,7 @@ name: Main game transaction checks
 on:
   pull_request:
     branches: [main]
-    paths: ['game/**', 'gateway/**', 'tests/world-*.mjs', 'tests/owner-world-interaction-store.test.mjs', 'tests/support/**', 'scripts/office-browser-accept.mjs', '.github/workflows/world-game-checks.yml']
+    paths: ['game/**', 'gateway/**', 'tests/world-*.mjs', 'tests/recovered-transactions.pg-ci.mjs', 'tests/owner-cutscene-transaction.test.mjs', 'tests/owner-run-store.test.mjs', 'tests/release-preflight.test.mjs', 'scripts/verify-live-game-readonly.mjs', 'tests/owner-world-interaction-store.test.mjs', 'tests/support/**', 'scripts/office-browser-accept.mjs', '.github/workflows/world-game-checks.yml']
   push:
     branches: [main, feat/main-game-world-pipeline]
 permissions:
@@ -47,6 +47,8 @@ jobs:
           echo "OFFICE_ARTIFACT_DIR=$RUNNER_TEMP/main-office-proof" >> "$GITHUB_ENV"
       - name: Prove server-owned mission, new-process resume, concurrency and rollback
         run: node --test tests/world-game.pg-ci.mjs
+      - name: Prove bounded recovered choice and cutscene transactions
+        run: node --test tests/recovered-transactions.pg-ci.mjs
       - name: Install isolated Chromium
         run: node "$OFFICE_PLAYWRIGHT_PATH/cli.js" install --with-deps chromium
       - name: Play both Glitch paths through the Office and Hallway

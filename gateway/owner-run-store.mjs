@@ -10,9 +10,10 @@ export function createOwnerRunStore({pool, executeCanonicalChoice, authorizeChap
         !Number.isSafeInteger(input.expectedRevision) || input.expectedRevision < 0)
       throw Object.assign(new Error('invalid_choice'),{status:422});
     const client=await pool.connect();
+    let discard;
     try {
       await client.query('BEGIN');
-      const result=await client.query('SELECT id,owner_subject,revision,state FROM ascension_player_runs WHERE id=$1 FOR UPDATE',[runId]);
+      const result=await client.query('SELECT id,owner_subject,revision,state FROM ascension_player_runs WHERE id=$1 AND owner_subject=$2 FOR UPDATE',[runId,identity.subject]);
       const run=result.rows[0];
       if (!run || run.owner_subject !== identity.subject) throw Object.assign(new Error('not_found'),{status:404});
       if (!Number.isSafeInteger(Number(run.revision)) || Number(run.revision) !== input.expectedRevision) throw Object.assign(new Error('stale_revision'),{status:409});
@@ -24,7 +25,7 @@ export function createOwnerRunStore({pool, executeCanonicalChoice, authorizeChap
       if (saved.rows.length!==1) throw Object.assign(new Error('stale_revision'),{status:409});
       await client.query('COMMIT');
       return {...saved.rows[0],revision:Number(saved.rows[0].revision)};
-    } catch(error) {await client.query('ROLLBACK');throw error} finally {client.release()}
+    } catch(error) {try{await client.query('ROLLBACK');}catch(cleanup){discard=cleanup;}throw error} finally {client.release(discard)}
   }
   async function loadOwnedRun(identity,runId) {
     if (!assertId(identity?.subject)) throw Object.assign(new Error('authentication_required'),{status:401});

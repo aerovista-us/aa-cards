@@ -4,3 +4,19 @@ function database(){let saved={id:'run-1',owner_subject:'alice',revision:0,state
 test('owner can persist next scene and revision',async()=>{const db=database();const store=createOwnerCutsceneTransaction({pool:db.pool,authorizeChapter:async()=>true});const next=await store.continueCutscene({subject:'alice'},'run-1',{cutsceneKey:'deathWake',expectedRevision:0});assert.equal(next.revision,1);assert.equal(next.nextCutscene,'officeIntake');assert.equal(db.get().state.flags.cutscenes.officeIntake,true);assert.deepEqual(db.get().state.pendingCutsceneQueue,['floorTutorial'])});
 test('stale choice, stolen run and denied chapter cannot write',async()=>{const db=database();const store=createOwnerCutsceneTransaction({pool:db.pool,authorizeChapter:async()=>true});for(const [subject,revision,code] of [['bob',0,404],['alice',1,409]]){await assert.rejects(store.continueCutscene({subject},'run-1',{cutsceneKey:'deathWake',expectedRevision:revision}),e=>e.status===code)}assert.equal(db.writes(),0);const denied=createOwnerCutsceneTransaction({pool:db.pool,authorizeChapter:async()=>false});await assert.rejects(denied.continueCutscene({subject:'alice'},'run-1',{cutsceneKey:'deathWake',expectedRevision:0}),e=>e.status===403);assert.equal(db.writes(),0)});
 test('wrong scene rolls back without advancing saved queue',async()=>{const db=database();const store=createOwnerCutsceneTransaction({pool:db.pool,authorizeChapter:async()=>true});await assert.rejects(store.continueCutscene({subject:'alice'},'run-1',{cutsceneKey:'officeIntake',expectedRevision:0}),e=>e.status===409);assert.equal(db.get().revision,0);assert.equal(db.get().state.activeCutsceneKey,'deathWake')});
+
+test('unfinished, malformed or unknown opening setup cannot advance cutscenes',async()=>{
+ for(const pending of [['ensureWorldTaskBoard'],['syncTaskMarkers'],['future-required-step'],null,{pending:true}]){
+  const db=database();db.get().state.pendingCanonicalTasks=pending;
+  const store=createOwnerCutsceneTransaction({pool:db.pool,authorizeChapter:async()=>true});
+  await assert.rejects(store.continueCutscene({subject:'alice'},'run-1',{cutsceneKey:'deathWake',expectedRevision:0}),e=>e.status===409&&e.message==='opening_setup_pending');
+  assert.equal(db.writes(),0);assert.equal(db.get().revision,0);
+ }
+});
+test('failed cutscene rollback discards the connection while preserving the original denial',async()=>{
+ const cleanup=Error('rollback failed');let discarded;
+ const pool={connect:async()=>({query:async sql=>{if(sql==='BEGIN')return {rows:[]};if(sql==='ROLLBACK')throw cleanup;return {rows:[]};},release:error=>{discarded=error;}})};
+ const store=createOwnerCutsceneTransaction({pool,authorizeChapter:async()=>true});
+ await assert.rejects(store.continueCutscene({subject:'alice'},'missing-run',{cutsceneKey:'deathWake',expectedRevision:0}),e=>e.status===404);
+ assert.equal(discarded,cleanup);
+});
