@@ -103,7 +103,7 @@ try{
  await page.getByRole('button',{name:'Move south',exact:true}).click();await position(4,2);
  await page.screenshot({path:resolve(process.env.OFFICE_ARTIFACT_DIR,'main-office-'+resolution+'-mobile.png'),fullPage:true});
  // Enter through an actual committed area transition; both Glitch paths run separately.
- const area=async id=>{await page.waitForFunction(id=>document.querySelector('#office-scene').dataset.world===id&&document.querySelector('#office-scene').dataset.sceneReady==='true',id);await ready();await page.locator('#office-scene canvas').waitFor({state:'visible'});};
+ const area=async id=>{await page.waitForFunction(id=>document.querySelector('#office-scene').dataset.world===id&&document.querySelector('#office-scene').dataset.sceneReady==='true',id);await ready();await page.locator('#office-scene canvas').waitFor({state:'visible'});assert.equal(await page.locator('#office-scene canvas').count(),1);};
  await action('enter-hallway');await area('afterlife-hallway');await position(4,5);
  assert.equal(await page.locator('#scene-title').innerText(),'The Hallway');
  const entered=projectWorldGame(owner,await store.loadCurrentRun(owner));
@@ -132,6 +132,8 @@ try{
  await page.reload({waitUntil:'networkidle'});await area('afterlife-hallway');
  assert.deepEqual(projectWorldGame(owner,await store.loadCurrentRun(owner)),completed);
  assert.equal(await page.evaluate(()=>localStorage.length),0);
+ assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth),true);
+ assert.equal(await page.locator('#resonance').evaluate(el=>el.scrollWidth<=el.clientWidth),true);
  await page.screenshot({path:resolve(process.env.OFFICE_ARTIFACT_DIR,'main-hallway-'+resolution+'-mobile.png'),fullPage:true});
  await page.setViewportSize({width:1440,height:1100});await page.waitForTimeout(150);
  await page.screenshot({path:resolve(process.env.OFFICE_ARTIFACT_DIR,'main-hallway-'+resolution+'-desktop.png'),fullPage:true});

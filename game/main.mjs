@@ -26,6 +26,7 @@ function render(current){
  $('save-revision').textContent=view?'Saved revision '+view.revision:'';
  $('office-scene').dataset.phase=current.phase;
  $('office-scene').dataset.world=view?.world.id||'';
+ $('response-label').textContent=view?.world.id==='afterlife-hallway'?'THE HALLWAY RESPONDS':'THE OFFICE RESPONDS';
  $('scene-title').textContent=view?.world.label||'Placement Office';
  $('scene-area').textContent=view?.world.id==='afterlife-hallway'?'TRANSIT / THE HALLWAY':'AFTERLIFE / INTAKE';
  $('mission-title').textContent=view?.mission.title||'Complete your intake';
