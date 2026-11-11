@@ -3,9 +3,21 @@ import {normalizeWorldView} from './world-contract.mjs';
 export function createWorldGameClient({fetchImpl=fetch,onChange=()=>{},origin='https://ascension-auth.aerovista.us'}={}){
  const parsed=new URL(origin);
  if(origin!==parsed.origin||(origin!=='https://ascension-auth.aerovista.us'&&!(parsed.protocol==='http:'&&['localhost','127.0.0.1'].includes(parsed.hostname))))throw TypeError('Approved game origin required');
- let csrf=null,generation=0,busy=false;
+ let csrf=null,generation=0,busy=false,queuedRefresh=null;
  let state=Object.freeze({phase:'idle',view:null,message:'Connect to your game.'});
  const show=(phase,message,view=null)=>{state=Object.freeze({phase,message,view});onChange(state);return state;};
+ function finishRequest(){
+  busy=false;
+  const queued=queuedRefresh;queuedRefresh=null;
+  if(queued)refresh().then(queued.resolve,queued.reject);
+ }
+ function queueRefresh(){
+  if(!queuedRefresh){
+   let resolve,reject;const promise=new Promise((yes,no)=>{resolve=yes;reject=no;});
+   queuedRefresh={promise,resolve,reject};
+  }
+  return queuedRefresh.promise;
+ }
  async function request(path,{method='GET',value}={}){
   const abort=new AbortController(),timer=setTimeout(()=>abort.abort(),10000);
   try{
@@ -24,7 +36,7 @@ export function createWorldGameClient({fetchImpl=fetch,onChange=()=>{},origin='h
   return show('unavailable','The game server could not confirm this request. Reload before continuing.');
  }
  async function refresh(){
-  if(busy)return state;
+  if(busy)return queueRefresh();
   const attempt=++generation;busy=true;csrf=null;show('loading','Loading your saved game…');
   try{
    const session=await request('/api/session');
@@ -40,7 +52,7 @@ export function createWorldGameClient({fetchImpl=fetch,onChange=()=>{},origin='h
    if(result.status!==200)return failure(result);
    return show('ready','Saved game loaded.',normalizeWorldView(result.body?.view));
   }catch{if(attempt===generation){csrf=null;return show('unavailable','The game server is unavailable. Your saved game has not been replaced.');}return state;}
-  finally{busy=false;}
+  finally{finishRequest();}
  }
  async function submit(kind,actionId){
   if(busy)throw Error('request_pending');
@@ -58,8 +70,8 @@ export function createWorldGameClient({fetchImpl=fetch,onChange=()=>{},origin='h
    if(creating?view.revision!==0:(view.runId!==previous.runId||view.revision!==previous.revision+1))throw Error('unconfirmed_commit');
    return show('ready','Progress saved.',view);
   }catch{if(attempt===generation){csrf=null;return show('unavailable','The action could not be confirmed. Reload the saved game before continuing.');}return state;}
-  finally{busy=false;}
+  finally{finishRequest();}
  }
  return Object.freeze({refresh,begin:()=>submit('create'),act:actionId=>submit('action',actionId),snapshot:()=>state,
-  clear:()=>{generation++;csrf=null;show('idle','Connect to your game.');}});
+  clear:()=>{generation++;csrf=null;const cancelled=queuedRefresh;queuedRefresh=null;const cleared=show('idle','Connect to your game.');cancelled?.resolve(cleared);}});
 }
