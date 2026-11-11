@@ -16,7 +16,7 @@ if(process.env.ASCENSION_DISPOSABLE_PG!=='1'||process.env.PGHOST!=='127.0.0.1'||
 const require=createRequire(import.meta.url),{Pool}=require(process.env.WORLD_PG_MODULE_PATH),{chromium}=require(process.env.OFFICE_PLAYWRIGHT_PATH);
 const root=resolve(dirname(fileURLToPath(import.meta.url)),'..'),gameRoot=resolve(root,'game'),pool=new Pool({max:5});
 const owner={subject:'fixture-office-player'},csrf='fixture-office-only-csrf-123456789';
-let active=true,handler,browser,server,page,origin;
+let active=true,handler,browser,server,uiServer,page,origin,uiOrigin;
 const store=createOwnerWorldInteractionStore({pool,authorizeWorld:async identity=>identity.subject===owner.subject});
 const adapter={auth:{resolveSession:async token=>({ok:true,authenticated:active&&token==='fixture-office-session',identityId:owner.subject})},
  identity:{describe:async()=>({ok:true,authenticated:active,identity:{identityId:owner.subject,status:'active'}})}};
@@ -27,7 +27,7 @@ try{
   try{
    const path=new URL(req.url,origin).pathname;
    if(path==='/api/session'){
-    res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store'});
+    res.writeHead(200,{'Content-Type':'application/json','Cache-Control':'no-store','Access-Control-Allow-Origin':uiOrigin,'Access-Control-Allow-Credentials':'true'});
     res.end(JSON.stringify(active?{authenticated:true,identity:{id:owner.subject},csrf}:{authenticated:false,identity:null,csrf:null}));return;
    }
    if(await handler(req,res))return;
@@ -35,7 +35,8 @@ try{
     const relative=decodeURIComponent(path.slice('/game/'.length))||'index.html';
     const file=resolve(gameRoot,relative),types={'.html':'text/html','.mjs':'application/javascript','.css':'text/css','.svg':'image/svg+xml'};
     if(!file.startsWith(gameRoot+sep)||!types[extname(file)]){res.writeHead(404);res.end();return;}
-    const bytes=await readFile(file);
+    let bytes=await readFile(file);
+    if(extname(file)==='.html')bytes=Buffer.from(bytes.toString().replace('<head>','<head><meta name="ascension-api-origin" content="'+origin+'">'));
     res.writeHead(200,{'Content-Type':types[extname(file)],'Cache-Control':'no-store',
      // Synthetic loopback-only HTTP cookies. Not a live TLS/cookie acceptance claim.
      ...(extname(file)==='.html'?{'Set-Cookie':['ascension_avcc_session=fixture-office-session; Path=/; HttpOnly; SameSite=Lax','ascension_csrf='+csrf+'; Path=/; HttpOnly; SameSite=Lax']}: {})});
@@ -45,7 +46,9 @@ try{
   }catch{if(!res.headersSent)res.writeHead(500,{'Content-Type':'application/json'});res.end(JSON.stringify({error:'fixture_unavailable'}));}
  });
  server.requestTimeout=10000;server.listen(0,'127.0.0.1');await once(server,'listening');origin='http://127.0.0.1:'+server.address().port;
- handler=createWorldGameHandler({adapter,store,appOrigin:origin,uiOrigin:origin});
+ uiServer=createServer(server.listeners('request')[0]);uiServer.listen(0,'127.0.0.1');await once(uiServer,'listening');
+ uiOrigin='http://127.0.0.1:'+uiServer.address().port;
+ handler=createWorldGameHandler({adapter,store,appOrigin:origin,uiOrigin});
  browser=await chromium.launch({headless:true,args:['--no-sandbox','--disable-dev-shm-usage']});
  page=await browser.newPage({viewport:{width:1440,height:1100}});page.setDefaultTimeout(20000);
  const errors=[],requests=[];
@@ -57,7 +60,7 @@ try{
  const action=async id=>{await page.locator('[data-action="'+id+'"]').click();await ready();};
  const coords={records:[4,5],caseworker:[4,2],stat:[1,3],rolodex:[6,3],exit:[4,1]};
  const visit=async id=>{await page.locator('[data-marker="'+id+'"]').click();await position(...coords[id]);};
- await page.goto(origin+'/game/',{waitUntil:'networkidle'});
+ await page.goto(uiOrigin+'/game/',{waitUntil:'networkidle'});
  await page.getByRole('button',{name:'Begin Billy’s intake',exact:true}).click();await ready();
  await page.locator('#office-scene canvas').waitFor({state:'visible'});
  await page.waitForFunction(()=>document.querySelector('#office-scene').dataset.sceneReady==='true');
@@ -120,5 +123,5 @@ try{
  if(page&&process.env.OFFICE_ARTIFACT_DIR){await mkdir(process.env.OFFICE_ARTIFACT_DIR,{recursive:true});await page.screenshot({path:resolve(process.env.OFFICE_ARTIFACT_DIR,'office-failure.png'),fullPage:true}).catch(()=>{});}
  throw error;
 }finally{
- await browser?.close();if(server){server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}await pool.end();
+ await browser?.close();if(uiServer){uiServer.closeAllConnections();await new Promise(resolve=>uiServer.close(resolve));}if(server){server.closeAllConnections();await new Promise(resolve=>server.close(resolve));}await pool.end();
 }

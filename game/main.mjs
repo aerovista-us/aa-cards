@@ -4,8 +4,10 @@ import {createOfficePresentation} from './office-scene.mjs';
 const $=id=>document.getElementById(id);
 let navigation=0,lastSnapshot={phase:'idle',view:null,message:'Connecting…'};
 const reduced=$('reduce-motion');reduced.checked=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-const origin=['127.0.0.1','localhost'].includes(location.hostname)?location.origin:'https://ascension-auth.aerovista.us';
-if(origin===location.origin)$('build-scope').textContent='Isolated development environment · test identity · no production game data';
+const local=['127.0.0.1','localhost'].includes(location.hostname);
+// A loopback fixture can serve UI and API on separate origins, as deployment does.
+const origin=local?(document.querySelector('meta[name=ascension-api-origin]')?.content||location.origin):'https://ascension-auth.aerovista.us';
+if(local)$('build-scope').textContent='Isolated development environment · test identity · no production game data';
 const presentation=createOfficePresentation({parent:$('office-scene'),onMove:(x,y)=>navigate({x,y}),
  onAnimation:()=>updateEnabled(),onUnavailable:()=>{$('scene-warning').hidden=false;},reduceMotion:()=>reduced.checked});
 const client=createWorldGameClient({origin,onChange:render});
