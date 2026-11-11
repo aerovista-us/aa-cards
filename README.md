@@ -1,6 +1,6 @@
-# Ascension Awaits — Cards Frame
+# Ascension Awaits — Game Development
 
-Isolated, mobile-first visual preview for Ascension Awaits cards and Soul Case File.
+The public site currently provides Account connection and a mobile-first character preview. Main-game development now follows one server-owned command/save path; see [the implementation and delivery plan](docs/MAIN_GAME_DELIVERY.md) and [main-game client](game/README.md). The new candidate API and game client remain unmounted and unreleased.
 
 ## Account connection
 
@@ -21,3 +21,4 @@ Run `node --test tests/*.test.mjs`. Account UI fixtures cover signed-out/active/
 ## Integration path
 
 Retain the canonical Ascension state/Director/save authority when integrating gameplay. Do not expose private saves or protected API credentials via static hosting.
+

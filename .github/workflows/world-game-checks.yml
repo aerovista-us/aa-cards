@@ -1,0 +1,46 @@
+name: Main game transaction checks
+on:
+  pull_request:
+    branches: [main]
+    paths: ['game/**', 'gateway/**', 'tests/world-*.mjs', '.github/workflows/world-game-checks.yml']
+  push:
+    branches: [feat/main-game-world-pipeline]
+permissions:
+  contents: read
+jobs:
+  world-postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: ascension_world_ci
+          POSTGRES_USER: ascension_ci
+          POSTGRES_PASSWORD: disposable-ci-only
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U ascension_ci -d ascension_world_ci"
+          --health-interval 3s --health-timeout 3s --health-retries 15
+    env:
+      ASCENSION_DISPOSABLE_PG: '1'
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGDATABASE: ascension_world_ci
+      PGUSER: ascension_ci
+      PGPASSWORD: disposable-ci-only
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '22'
+      - name: Run existing contracts and main game fixtures
+        run: node --test tests/*.test.mjs gateway/ascension-bridge-identity.test.mjs
+      - name: Install isolated PostgreSQL test client
+        run: |
+          world_pg_dir="$RUNNER_TEMP/ascension-world-pg"
+          mkdir -p "$world_pg_dir"
+          npm install --prefix "$world_pg_dir" --no-audit --no-fund --ignore-scripts pg@8.16.3
+          echo "WORLD_PG_MODULE_PATH=$world_pg_dir/node_modules/pg" >> "$GITHUB_ENV"
+      - name: Prove server-owned mission, new-process resume, concurrency and rollback
+        run: node --test tests/world-game.pg-ci.mjs

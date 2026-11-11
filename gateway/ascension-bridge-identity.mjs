@@ -17,12 +17,10 @@ function readNativeCookie(raw){
   return token;
  }catch{return null;}
 }
-export function createAscensionBridgeIdentity({adapter,capability}={}){
+export function createAscensionBridgeSessionResolver({adapter}={}){
  if(typeof adapter?.auth?.resolveSession!=='function'||
-  typeof adapter?.identity?.describe!=='function'||
-  typeof adapter?.identity?.can!=='function'||
-  !validCapability(capability))
-  throw new TypeError('Approved live App Adapter and registered map capability required');
+  typeof adapter?.identity?.describe!=='function')
+  throw new TypeError('Approved live App Adapter required');
  return Object.freeze({
   async resolveIdentity(req){
    const token=readNativeCookie(req?.headers?.cookie);
@@ -34,7 +32,15 @@ export function createAscensionBridgeIdentity({adapter,capability}={}){
       description.identity?.identityId!==session.identityId||
       description.identity.status!=='active')return null;
    return {subject:session.identityId};
-  },
+  }
+ });
+}
+export function createAscensionBridgeIdentity({adapter,capability}={}){
+ if(typeof adapter?.identity?.can!=='function'||!validCapability(capability))
+  throw new TypeError('Approved live App Adapter and registered map capability required');
+ const session=createAscensionBridgeSessionResolver({adapter});
+ return Object.freeze({
+  ...session,
   async authorizeMapView(identity){
    if(!validId(identity?.subject))return false;
    const grant=await adapter.identity.can({identityId:identity.subject,capability});
@@ -42,3 +48,4 @@ export function createAscensionBridgeIdentity({adapter,capability}={}){
   }
  });
 }
+
