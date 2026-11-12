@@ -64,6 +64,10 @@ jobs:
           exit 1
       - name: Prove full-state persistence, owner denial and action after database restart
         run: WORLD_RESTART_PHASE=after node --test tests/world-restart.pg-ci.mjs
+      - name: Restore a backup into a fresh disposable volume and resume with a restricted role
+        env:
+          POSTGRES_CI_CONTAINER: ${{ job.services.postgres.id }}
+        run: node --test tests/world-recovery.pg-ci.mjs
       - name: Install isolated Chromium
         run: node "$OFFICE_PLAYWRIGHT_PATH/cli.js" install --with-deps chromium
       - name: Play both Glitch paths through the Office and Hallway
