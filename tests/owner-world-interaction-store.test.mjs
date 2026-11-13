@@ -59,3 +59,22 @@ test('a repeated create refuses a second current run and preserves progress',asy
  assert.equal(calls.filter(sql=>sql.startsWith('INSERT')).length,1);
  assert.equal(calls.filter(sql=>sql.startsWith('SELECT pg_advisory_xact_lock')).length,2);
 });
+
+test('capability policy enforces live App Adapter grants inside the owner-store transaction',async()=>{
+ const {createWorldCapabilityAuthorizer}=await import('../gateway/world-capability-policy.mjs');
+ const capabilityNames={load:'fixture.world.load',create:'fixture.world.create',action:'fixture.world.action',travel:'fixture.world.travel',map:'fixture.world.map'};
+ const allowed=new Set(Object.values(capabilityNames)),checks=[];
+ const adapter={identity:{async can({identityId,capability}){checks.push({identityId,capability});return {ok:true,allowed:allowed.has(capability)}}}};
+ const store=createOwnerWorldInteractionStore({pool:fakePool().pool,
+  authorizeWorld:createWorldCapabilityAuthorizer({adapter,capabilityNames})});
+ await store.createRun(alice,'capability-run');
+ await store.commitAction(alice,'capability-run',{expectedRevision:0,command:{type:'inspect',target:'notice'}});
+ const before=await store.loadRun(alice,'capability-run');
+ allowed.delete(capabilityNames.travel);
+ await assert.rejects(store.commitAction(alice,'capability-run',{expectedRevision:1,command:{type:'travel',target:'exit'}}),e=>e.status===403);
+ assert.deepEqual(await store.loadRun(alice,'capability-run'),before);
+ assert.deepEqual(checks.slice(-3).map(x=>x.capability),[capabilityNames.action,capabilityNames.travel,capabilityNames.load]);
+ allowed.delete(capabilityNames.action);
+ await assert.rejects(store.commitAction(alice,'capability-run',{expectedRevision:1,command:{type:'move',dx:1,dy:0}}),e=>e.status===403);
+ assert.deepEqual(await store.loadRun(alice,'capability-run'),before);
+});
