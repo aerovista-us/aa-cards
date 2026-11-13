@@ -3,11 +3,13 @@ import {randomBytes} from 'node:crypto';
 import {OFFICE_WORLD,officeCellEnabled,TOPICS,PLACEMENTS,ITEMS,assessmentFor} from './office-layout.mjs';
 import {HALLWAY_WORLD,hallwayCellEnabled} from './hallway-layout.mjs';
 import {enterHallway,applyHallwayAction} from './hallway-rules.mjs';
+import {ARCHIVE_WORLD,archiveCellEnabled} from './archive-layout.mjs';
+import {applyArchiveAction} from './archive-rules.mjs';
 import {createPersistentRng} from './persistent-rng.mjs';
 const copy=x=>structuredClone(x);
 const id=x=>typeof x==='string'&&/^[A-Za-z0-9:_-]{1,160}$/.test(x);
 const near=(a,b)=>Math.abs(a.x-b.x)+Math.abs(a.y-b.y)<=1;
-const EVENTS=new Set(['moved','inspected','npc_spoke','records_taken','assessment_completed','placement_selected','glitch_observed','glitch_resolved','area_entered','hallway_spoke','file_inspected']);
+const EVENTS=new Set(['moved','inspected','npc_spoke','records_taken','assessment_completed','placement_selected','glitch_observed','glitch_resolved','area_entered','hallway_spoke','file_inspected','archive_spoke','archive_inspected','archive_choice','archive_sealed']);
 export function intakeSteps(s){return [
  {id:'notice',label:'Read the intake notice',complete:s.objectState.notice.read},
  {id:'records',label:'Collect your case file at Records',complete:s.objectState.records.taken},
@@ -33,7 +35,8 @@ export function applyWorldAction(saved,command){
   const o=Object.hasOwn(OFFICE_WORLD.objects,target)?OFFICE_WORLD.objects[target]:null;
   if(!o||!near(p,o))throw Error('target_not_in_reach');return o;
  };
- if(state.location===HALLWAY_WORLD.id)event=applyHallwayAction(state,command);
+ if(state.location===ARCHIVE_WORLD.id)event=applyArchiveAction(state,command);
+ else if(state.location===HALLWAY_WORLD.id)event=applyHallwayAction(state,command);
  else switch(command.type){
   case 'travel':{
    if(command.target!=='exit')throw Error('unsupported_destination');
@@ -127,10 +130,10 @@ export function restoreOfficeRun(json,{ownerId}={}){
  if(s.schemaVersion===2){
   if(s.location!==OFFICE_WORLD.id||Object.hasOwn(s,'hallway'))throw Error('invalid_save');
   s.schemaVersion=3;s.hallway=null;
- }else if(s.schemaVersion!==3)throw Error('unsupported_save_version');
+ }else if(s.schemaVersion!==3&&s.schemaVersion!==4)throw Error('unsupported_save_version');
  const memory=s.npcMemory?.caseworker,record=s.objectState?.records,a=s.stat?.assessment,g=s.glitch;
- const bad=!id(s.ownerId)||!id(s.runId)||![OFFICE_WORLD.id,HALLWAY_WORLD.id].includes(s.location)||!Number.isSafeInteger(s.revision)||s.revision<0||
-  s.player?.name!=='Billy'||!(s.location===OFFICE_WORLD.id?officeCellEnabled:hallwayCellEnabled)(s.player?.x,s.player?.y)||
+ const bad=!id(s.ownerId)||!id(s.runId)||![OFFICE_WORLD.id,HALLWAY_WORLD.id,ARCHIVE_WORLD.id].includes(s.location)||!Number.isSafeInteger(s.revision)||s.revision<0||
+  s.player?.name!=='Billy'||!(s.location===OFFICE_WORLD.id?officeCellEnabled:s.location===HALLWAY_WORLD.id?hallwayCellEnabled:archiveCellEnabled)(s.player?.x,s.player?.y)||
   typeof s.objectState?.notice?.read!=='boolean'||typeof record?.read!=='boolean'||typeof record?.taken!=='boolean'||
   !s.inventory||typeof s.inventory!=='object'||Array.isArray(s.inventory)||Object.keys(s.inventory).some(k=>!Object.hasOwn(ITEMS,k)||s.inventory[k]!==1)||
   (s.inventory['case-file']===1)!==record.taken||(s.inventory['queue-ticket']===1)!==record.taken||
@@ -159,6 +162,18 @@ export function restoreOfficeRun(json,{ownerId}={}){
    !intakeSteps(s).every(step=>step.complete)||(h.inspectionComplete&&(h.mode!=='scrutiny'||!h.attendantMet))||
    (h.routeRevealed&&(!h.attendantMet||(h.mode==='scrutiny'&&!h.inspectionComplete)))||
    (h.mode==='assistance'&&h.attendantMet!==h.routeRevealed)||(h.destinationRead&&!h.routeRevealed))throw Error('invalid_save');
- }else if(s.location===HALLWAY_WORLD.id)throw Error('invalid_save');
+ }else if(s.location!==OFFICE_WORLD.id)throw Error('invalid_save');
+ if(s.schemaVersion===3){
+  if(Object.hasOwn(s,'archive')||s.location===ARCHIVE_WORLD.id)throw Error('invalid_save');
+ }else{
+  const archive=s.archive;
+  if(!archive||typeof archive!=='object'||Array.isArray(archive)||Object.keys(archive).length!==6||
+   !['assistance','scrutiny'].includes(archive.mode)||archive.mode!==s.consequences.hallway||
+   ['archivistMet','ledgerRead','echoWitnessed','sealIssued'].some(k=>typeof archive[k]!=='boolean')||
+   (archive.resolution!==null&&!['preserve','release'].includes(archive.resolution))||
+   (archive.resolution!==null&&(!archive.archivistMet||!archive.ledgerRead||!archive.echoWitnessed))||
+   (archive.sealIssued&&archive.resolution===null)||s.placement!=='memory'||
+   !h?.routeRevealed||!h.destinationRead)throw Error('invalid_save');
+ }
  return copy(s);
 }
