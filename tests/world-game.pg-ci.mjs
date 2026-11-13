@@ -133,6 +133,138 @@ if(process.env.WORLD_RESUME_WORKER==='1'){
   const migrated=await store.loadCurrentRun(legacyOwner);assert.equal(migrated.state.schemaVersion,3);assert.equal(migrated.revision,legacy.revision+1);
   assert.deepEqual(migrated.state.rng,original.rng);assert.deepEqual(migrated.state.inventory,original.inventory);assert.deepEqual(migrated.state.consequences,original.consequences);
  });
+ await t.test('current App Adapter grant denial preserves real PostgreSQL row and revision',async()=>{
+  const {createWorldCapabilityAuthorizer}=await import('../gateway/world-capability-policy.mjs');
+  const names={load:'fixture.world.load',create:'fixture.world.create',action:'fixture.world.action',travel:'fixture.world.travel',map:'fixture.world.map'};
+  const grants=new Set(Object.values(names)),who={subject:'fixture-capability-player'};
+  const adapter={identity:{can:async({identityId,capability})=>({ok:true,allowed:identityId===who.subject&&grants.has(capability)})}};
+  const protectedStore=createOwnerWorldInteractionStore({pool,authorizeWorld:createWorldCapabilityAuthorizer({adapter,capabilityNames:names})});
+  await protectedStore.createRun(who,'fixture-capability-run');
+  await protectedStore.commitAction(who,'fixture-capability-run',{expectedRevision:0,command:{type:'inspect',target:'notice'}});
+  const before=(await pool.query('SELECT * FROM ascension_player_runs WHERE id=$1',['fixture-capability-run'])).rows[0];
+  grants.delete(names.travel);
+  await assert.rejects(protectedStore.commitAction(who,'fixture-capability-run',
+   {expectedRevision:1,command:{type:'travel',target:'exit'}}),e=>e.status===403);
+  grants.delete(names.action);
+  await assert.rejects(protectedStore.commitAction(who,'fixture-capability-run',
+   {expectedRevision:1,command:{type:'move',dx:1,dy:0}}),e=>e.status===403);
+  const after=(await pool.query('SELECT * FROM ascension_player_runs WHERE id=$1',['fixture-capability-run'])).rows[0];
+  assert.deepEqual(after,before,'Denied grants cannot change row data or revision');
+  grants.delete(names.load);
+  await assert.rejects(protectedStore.loadRun(who,'fixture-capability-run'),e=>e.status===403);
+  assert.deepEqual((await pool.query('SELECT * FROM ascension_player_runs WHERE id=$1',['fixture-capability-run'])).rows[0],before);
+ });
+ await t.test('prepared native Account composition enforces two owners, live grants and save/resume through real PostgreSQL',async()=>{
+  const {createPreparedWorldGameHandler}=await import('../gateway/world-staging-composition.mjs');
+  const names={load:'fixture.world.load',create:'fixture.world.create',action:'fixture.world.action',travel:'fixture.world.travel',map:'fixture.world.map'};
+  const subjects={'composed-a':'fixture-composed-a','composed-a-relogin':'fixture-composed-a','composed-b':'fixture-composed-b'};
+  const activeSessions=new Set(Object.keys(subjects));
+  let mismatchIdentity=false, grantServiceUnavailable=false;
+  const grants=new Map([['fixture-composed-a',new Set([names.load])],['fixture-composed-b',new Set([names.load,names.create,names.action])]]);
+  const composedAdapter={
+   auth:{resolveSession:async token=>({ok:true,authenticated:activeSessions.has(token),identityId:subjects[token]})},
+   identity:{
+    describe:async token=>({ok:true,authenticated:activeSessions.has(token),
+      identity:activeSessions.has(token)?{identityId:mismatchIdentity?'fixture-other-identity':subjects[token],status:'active'}:null}),
+    can:async ({identityId,capability})=>{
+      if(grantServiceUnavailable)throw Error('private_grant_gateway_detail');
+      return {ok:true,allowed:grants.get(identityId)?.has(capability)===true};
+    }
+   }
+  };
+  const priorHandler=handler;
+  handler=createPreparedWorldGameHandler({adapter:composedAdapter,pool,capabilityNames:names,appOrigin:origin,uiOrigin:origin});
+  const call=async(path,{method='GET',token='composed-a',value}={})=>{
+   const response=await fetchAs(token)(origin+path,{method,
+    ...(method==='POST'?{headers:{'Content-Type':'application/json','X-Ascension-CSRF':csrf},body:JSON.stringify(value)}:{})});
+   return {status:response.status,body:await response.json()};
+  };
+  const stored=async id=>(await pool.query('SELECT * FROM ascension_player_runs WHERE id=$1',[id])).rows[0];
+  try{
+   assert.equal((await call('/api/game/world')).status,404);
+   assert.equal((await call('/api/game/world/runs',{method:'POST',value:{}})).status,403);
+   const noCreate=(await pool.query('SELECT count(*)::int AS n FROM ascension_player_runs WHERE owner_subject=$1',[subjects['composed-a']])).rows[0];
+   assert.equal(noCreate.n,0);
+   grants.get(subjects['composed-a']).add(names.create);
+   const created=await call('/api/game/world/runs',{method:'POST',value:{}});
+   assert.equal(created.status,201);assert.equal(created.body.view.revision,0);
+   const runId=created.body.view.runId;
+   assert.deepEqual((await call('/api/game/world')).body.view,created.body.view);
+   grants.get(subjects['composed-a']).add(names.action);
+   const acted=await call('/api/game/world/actions',{method:'POST',value:{runId,expectedRevision:0,command:{type:'inspect',target:'notice'}}});
+   assert.equal(acted.status,200);assert.equal(acted.body.view.revision,1);
+   assert.equal(acted.body.view.mission.steps[0].complete,true);
+   const committed=await stored(runId);
+   // Distinct native resolve and describe results cannot become authenticated
+   // game authority, even if the cookie and a grant otherwise appear valid.
+   mismatchIdentity=true;
+   assert.deepEqual(await call('/api/game/world'),{status:401,body:{error:'authentication_required'}});
+   mismatchIdentity=false;
+   assert.deepEqual(await stored(runId),committed);
+   // Gateway outages must fail closed with bounded public errors, and never
+   // leak private adapter details or write after a failed capability check.
+   grantServiceUnavailable=true;
+   const readDown=await call('/api/game/world');
+   assert.deepEqual(readDown,{status:503,body:{error:'world_unavailable'}});
+   const writeDown=await call('/api/game/world/actions',{method:'POST',
+    value:{runId,expectedRevision:1,command:{type:'move',dx:1,dy:0}}});
+   assert.deepEqual(writeDown,{status:503,body:{error:'world_unavailable'}});
+   grantServiceUnavailable=false;
+   assert.deepEqual(await stored(runId),committed);
+   assert.equal((await call('/api/game/world/actions',{method:'POST',value:{runId,expectedRevision:0,command:{type:'move',dx:1,dy:0}}})).status,409);
+   assert.equal((await call('/api/game/world/actions',{method:'POST',value:{runId,expectedRevision:1,command:{type:'travel',target:'exit'}}})).status,403);
+   grants.get(subjects['composed-a']).delete(names.action);
+   assert.equal((await call('/api/game/world/actions',{method:'POST',value:{runId,expectedRevision:1,command:{type:'move',dx:1,dy:0}}})).status,403);
+   assert.deepEqual(await stored(runId),committed,'stale and denied operations must preserve the entire PostgreSQL row');
+   assert.equal((await call('/api/game/world/actions',{method:'POST',token:'composed-b',value:{runId,expectedRevision:1,command:{type:'move',dx:1,dy:0}}})).status,404);
+   const other=await call('/api/game/world/runs',{method:'POST',token:'composed-b',value:{}});
+   assert.equal(other.status,201);assert.notEqual(other.body.view.runId,runId);
+   assert.equal((await call('/api/game/world',{token:'composed-b'})).body.view.runId,other.body.view.runId);
+   activeSessions.delete('composed-a');
+   assert.equal((await call('/api/game/world')).status,401);
+   assert.deepEqual(await stored(runId),committed,'session revocation must not mutate the committed save');
+   const resumed=await call('/api/game/world',{token:'composed-a-relogin'});
+   assert.equal(resumed.status,200);assert.deepEqual(resumed.body.view,acted.body.view);
+   grants.get(subjects['composed-a']).delete(names.load);
+   assert.equal((await call('/api/game/world',{token:'composed-a-relogin'})).status,403);
+   assert.deepEqual(await stored(runId),committed);
+   // The same staged Account + grant + PostgreSQL path must support an actual
+   // complete authored journey, not just a one-action and denial fixture.
+   grants.get(subjects['composed-a']).add(names.load);
+   grants.get(subjects['composed-a']).add(names.action);
+   grants.get(subjects['composed-a']).add(names.travel);
+   grants.get(subjects['composed-b']).add(names.travel);
+   const aClient=createWorldGameClient({origin,fetchImpl:fetchAs('composed-a-relogin')});
+   await aClient.refresh();assert.equal(aClient.snapshot().phase,'ready');
+   await completeClient(aClient,{placement:'present',resolution:'conceal'});
+   await completeHallwayClient(aClient);
+   const bClient=createWorldGameClient({origin,fetchImpl:fetchAs('composed-b')});
+   await bClient.refresh();assert.equal(bClient.snapshot().phase,'ready');
+   await completeClient(bClient,{placement:'memory',resolution:'report'});
+   await completeHallwayClient(bClient);
+   const aRow=await stored(runId),bRow=await stored(other.body.view.runId);
+   assert.equal(aRow.state.consequences.hallway,'scrutiny');
+   assert.equal(bRow.state.consequences.hallway,'assistance');
+   assert.equal(aRow.state.hallway.inspectionComplete,true);
+   assert.equal(bRow.state.hallway.inspectionComplete,false);
+   assert.equal(aRow.state.hallway.destinationRead,true);
+   assert.equal(bRow.state.hallway.destinationRead,true);
+   assert.equal(aRow.state.rng.rngDraws,1);
+   assert.equal(bRow.state.rng.rngDraws,1);
+   const freshA=createWorldGameClient({origin,fetchImpl:fetchAs('composed-a-relogin')});
+   const freshB=createWorldGameClient({origin,fetchImpl:fetchAs('composed-b')});
+   await freshA.refresh();await freshB.refresh();
+   assert.deepEqual(freshA.snapshot().view,aClient.snapshot().view);
+   assert.deepEqual(freshB.snapshot().view,bClient.snapshot().view);
+   // Revoking travel after completing the journey must not let the player
+   // return to the Office, even if a nearby destination could be reached.
+   grants.get(subjects['composed-a']).delete(names.travel);
+   assert.equal((await call('/api/game/world/actions',{method:'POST',token:'composed-a-relogin',
+    value:{runId,expectedRevision:Number(aRow.revision),command:{type:'travel',target:'return'}}})).status,403);
+   assert.deepEqual(await stored(runId),aRow);
+   assert.deepEqual(await stored(other.body.view.runId),bRow);
+  }finally{handler=priorHandler;}
+ });
  await t.test('inactive identity clears the client view without changing the saved run',async()=>{
   const before=await store.loadCurrentRun(identity);
   active=false;await client.refresh();assert.equal(client.snapshot().phase,'signed_out');
