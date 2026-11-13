@@ -1,4 +1,5 @@
 import {HALLWAY_WORLD,HALLWAY_DESTINATIONS,hallwayCellEnabled} from './hallway-layout.mjs';
+import {enterArchive} from './archive-rules.mjs';
 const near=(a,b)=>Math.abs(a.x-b.x)+Math.abs(a.y-b.y)<=1;
 export function enterHallway(state,intakeComplete){
  if(!near(state.player,{x:4,y:1}))throw Error('target_not_in_reach');
@@ -19,6 +20,7 @@ export function applyHallwayAction(state,command){
    p.x+=command.dx;p.y+=command.dy;return {type:'moved',text:'Billy follows the Hallway’s shifting floor lights.'};
   }
   case 'travel':{
+   if(command.target==='destination')return enterArchive(state);
    if(command.target!=='return')throw Error('unsupported_destination');object('return');
    state.location='afterlife-placement-office';Object.assign(p,{x:4,y:1});
    return {type:'area_entered',text:'Billy returns to the Placement Office. His assessment, Glitch decision and Hallway record remain filed.'};
@@ -42,7 +44,7 @@ export function applyHallwayAction(state,command){
    if(command.target==='inspection'&&h.mode==='assistance')text='Your filed help note clears this checkpoint. No additional inspection is required.';
    if(command.target==='routes'&&h.routeRevealed)text='Your routing slip points toward '+HALLWAY_DESTINATIONS[state.placement]+'. The other arrows lead to later journeys.';
    if(command.target==='destination'){
-    if(h.routeRevealed){h.destinationRead=true;text=HALLWAY_DESTINATIONS[state.placement]+'. Your route is confirmed. The door has not opened yet; this journey continues in a later build.';}
+    if(h.routeRevealed){h.destinationRead=true;text=HALLWAY_DESTINATIONS[state.placement]+'. Your route is confirmed. '+(state.placement==='memory'?'The Archive door is now open.':'The Veilway door remains closed in this build.');}
     else text='The destination lettering will not settle. Resolve your file with the attendant first.';
    }
    return {type:'inspected',target:command.target,text};

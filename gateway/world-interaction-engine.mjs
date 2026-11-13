@@ -4,3 +4,4 @@ export {createOfficeRun,applyWorldAction,serializeOfficeRun,restoreOfficeRun,int
 
 
 export {HALLWAY_WORLD,hallwaySteps} from './hallway-layout.mjs';
+export {ARCHIVE_WORLD,archiveSteps} from './archive-layout.mjs';

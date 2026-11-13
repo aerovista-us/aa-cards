@@ -26,9 +26,9 @@ function render(current){
  $('save-revision').textContent=view?'Saved revision '+view.revision:'';
  $('office-scene').dataset.phase=current.phase;
  $('office-scene').dataset.world=view?.world.id||'';
- $('response-label').textContent=view?.world.id==='afterlife-hallway'?'THE HALLWAY RESPONDS':'THE OFFICE RESPONDS';
+ $('response-label').textContent=view?.world.id==='archive-of-echoes'?'THE ARCHIVE RESPONDS':view?.world.id==='afterlife-hallway'?'THE HALLWAY RESPONDS':'THE OFFICE RESPONDS';
  $('scene-title').textContent=view?.world.label||'Placement Office';
- $('scene-area').textContent=view?.world.id==='afterlife-hallway'?'TRANSIT / THE HALLWAY':'AFTERLIFE / INTAKE';
+ $('scene-area').textContent=view?.world.id==='archive-of-echoes'?'MEMORY / THE ARCHIVE':view?.world.id==='afterlife-hallway'?'TRANSIT / THE HALLWAY':'AFTERLIFE / INTAKE';
  $('mission-title').textContent=view?.mission.title||'Complete your intake';
  $('scene-cover').hidden=!!view;
  $('cover-message').textContent=current.message;
@@ -37,9 +37,10 @@ function render(current){
  $('position').textContent=view?'Billy · '+view.player.x+', '+view.player.y:'Awaiting your case file';
  $('position').dataset.x=view?String(view.player.x):'';$('position').dataset.y=view?String(view.player.y):'';
  $('intake-complete').hidden=!view?.mission.complete;
- $('intake-complete').textContent=view?.world.id==='afterlife-hallway'?'Hallway route confirmed. The next realm awaits.':'Intake complete. Your Hallway pass is ready.';
- $('hallway-status').textContent=view?.hallway?(view.hallway.mode==='assistance'?'Assistance filed':'Scrutiny recorded')+(view.hallway.routeRevealed?' · Route revealed':view.hallway.inspectionComplete?' · Inspection filed':' · Speak to the attendant'):'';
- $('hallway-status').hidden=!view?.hallway;
+ $('intake-complete').textContent=view?.world.id==='archive-of-echoes'?'Your first Echo record is filed. The other realms await.':view?.world.id==='afterlife-hallway'?'Hallway route confirmed. The next realm awaits.':'Intake complete. Your Hallway pass is ready.';
+ $('hallway-status').textContent=view?.archive?('Archive Echo: '+(view.archive.resolution||'unfiled')+(view.archive.sealIssued?' · Seal filed':'')+' · '+(view.archive.mode==='assistance'?'Assistance':'Scrutiny')):
+  view?.hallway?(view.hallway.mode==='assistance'?'Assistance filed':'Scrutiny recorded')+(view.hallway.routeRevealed?' · Route revealed':view.hallway.inspectionComplete?' · Inspection filed':' · Speak to the attendant'):'';
+ $('hallway-status').hidden=!view?.hallway&&!view?.archive;
  $('mission-progress').textContent=view?view.mission.steps.filter(s=>s.complete).length+' / '+view.mission.steps.length+' filed':'Waiting for saved progress';
  const steps=$('mission-steps');steps.replaceChildren();
  for(const step of view?.mission.steps||[]){const item=document.createElement('li');item.textContent=step.label;item.classList.toggle('done',step.complete);steps.append(item);}

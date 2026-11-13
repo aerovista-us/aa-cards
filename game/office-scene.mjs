@@ -26,16 +26,16 @@ export function createOfficePresentation({parent,onMove,onAnimation,onUnavailabl
   constructor(){super('MainAfterlifeOffice');this.view=null;this.finish=null;}
   create(){scene=this;this.cameras.main.setBackgroundColor('#0a1321');this.apply(snapshot);parent.dataset.sceneReady='true';}
   drawRoom(view){
-   const hallway=view.world.id==='afterlife-hallway',g=this.add.graphics().setDepth(1);
-   this.cameras.main.setBackgroundColor(hallway?'#101124':'#0a1321');
-   g.fillStyle(hallway?0x282842:0x182b3c);g.fillRoundedRect(LEFT-14,TOP-14,view.world.width*CELL+28,view.world.height*CELL+28,18);
+   const hallway=view.world.id==='afterlife-hallway',archive=view.world.id==='archive-of-echoes',g=this.add.graphics().setDepth(1);
+   this.cameras.main.setBackgroundColor(archive?'#1d1027':hallway?'#101124':'#0a1321');
+   g.fillStyle(archive?0x332642:hallway?0x282842:0x182b3c);g.fillRoundedRect(LEFT-14,TOP-14,view.world.width*CELL+28,view.world.height*CELL+28,18);
    g.lineStyle(2,0x85765b,.9);g.strokeRoundedRect(LEFT-14,TOP-14,view.world.width*CELL+28,view.world.height*CELL+28,18);
    for(let y=0;y<view.world.height;y++)for(let x=0;x<view.world.width;x++){
     const p=point(x,y),open=view.world.cells[y*view.world.width+x].walkable;
-    g.fillStyle(open?((x+y)%2?0x304659:0x2a3e51):0x172332);
+    g.fillStyle(open?(archive?((x+y)%2?0x51405f:0x463456):((x+y)%2?0x304659:0x2a3e51)):(archive?0x221d30:0x172332));
     g.fillRoundedRect(p.x-CELL/2+2,p.y-CELL/2+2,CELL-4,CELL-4,3);
     g.lineStyle(1,open?0x506a7b:0x344152,.65);g.strokeRect(p.x-CELL/2+3,p.y-CELL/2+3,CELL-6,CELL-6);
-    if(!hallway&&!open&&y>0&&y<6&&(x===2||x===5||x===6)){
+    if(!hallway&&!archive&&!open&&y>0&&y<6&&(x===2||x===5||x===6)){
      g.fillStyle(0x4b5d68);g.fillRoundedRect(p.x-22,p.y-26,44,52,4);
      for(let row=0;row<3;row++){
       g.fillStyle(0x354a5b);g.fillRect(p.x-18,p.y-21+row*16,36,12);
@@ -43,23 +43,30 @@ export function createOfficePresentation({parent,onMove,onAnimation,onUnavailabl
      }
     }
    }
-   if(!hallway)for(const x of [1,7]){
+   if(!hallway&&!archive)for(const x of [1,7]){
     const a=point(x,3),b=point(x,4);g.lineStyle(5,0xac8b5a,.7);g.lineBetween(a.x-26,a.y-27,b.x-26,b.y+27);
     g.fillStyle(0xdfc592);g.fillCircle(a.x-26,a.y-27,5);g.fillCircle(b.x-26,b.y+27,5);
    }
    if(hallway){
     for(let y=1;y<=5;y++){const p=point(4,y);g.fillStyle(0x9c8ccd,.65);g.fillCircle(p.x-29,p.y,3);g.fillCircle(p.x+29,p.y,3);}
    }
-   this.add.text(WIDTH/2,31,hallway?'THE HALLWAY / ROUTES IN REVISION':'DEPARTMENT OF POSTHUMOUS AFFAIRS',{fontFamily:'monospace',fontSize:'13px',color:'#e6c992'}).setOrigin(.5);
-   this.add.text(28,HEIGHT-20,hallway?'TRANSIT / KEEP YOUR FILE CLOSE':'AFTERLIFE / PLACEMENT OFFICE',{fontFamily:'monospace',fontSize:'11px',color:'#95b3c2'});
-   this.add.text(WIDTH-28,HEIGHT-20,'9 × 7',{fontFamily:'monospace',fontSize:'11px',color:'#95b3c2'}).setOrigin(1,0);
+   if(archive){
+    for(let x=0;x<view.world.width;x++)for(let y=0;y<view.world.height;y++){
+     if(view.world.cells[y*view.world.width+x].walkable)continue;
+     const p=point(x,y);g.fillStyle(0x7f654d,.5);g.fillRoundedRect(p.x-26,p.y-28,52,56,5);
+     for(let i=0;i<3;i++){g.fillStyle(i%2?0xd1b58d:0x9d88b6,.7);g.fillRect(p.x-20,p.y-22+i*17,40,8);}
+    }
+   }
+   this.add.text(WIDTH/2,31,archive?'ARCHIVE OF ECHOES / UNFILED RECORDS':hallway?'THE HALLWAY / ROUTES IN REVISION':'DEPARTMENT OF POSTHUMOUS AFFAIRS',{fontFamily:'monospace',fontSize:'13px',color:'#e6c992'}).setOrigin(.5);
+   this.add.text(28,HEIGHT-20,archive?'MEMORY / SIGN FOR YOUR DECISIONS':hallway?'TRANSIT / KEEP YOUR FILE CLOSE':'AFTERLIFE / PLACEMENT OFFICE',{fontFamily:'monospace',fontSize:'11px',color:'#95b3c2'});
+   this.add.text(WIDTH-28,HEIGHT-20,view.world.width+' × '+view.world.height,{fontFamily:'monospace',fontSize:'11px',color:'#95b3c2'}).setOrigin(1,0);
    this.markerArt=new Map();
-   const styles={records:[0xdcc99f,'▤'],stat:[0x82ded5,'◇'],rolodex:[0xc1a0ef,'R'],exit:[0xf1b293,'↟'],notice:[0x9ab8cc,'!'],caseworker:[0xf1d18b,'C'],attendant:[0xc6b5f1,'A'],inspection:[0xf1b56b,'?'],routes:[0x8edbd1,'↔'],destination:[0xc1a0ef,'◇'],return:[0xdcc99f,'↟']};
+   const styles={records:[0xdcc99f,'▤'],stat:[0x82ded5,'◇'],rolodex:[0xc1a0ef,'R'],exit:[0xf1b293,'↟'],notice:[0x9ab8cc,'!'],caseworker:[0xf1d18b,'C'],attendant:[0xc6b5f1,'A'],inspection:[0xf1b56b,'?'],routes:[0x8edbd1,'↔'],destination:[0xc1a0ef,'◇'],return:[0xdcc99f,'↟'],archivist:[0xe2c5a4,'A'],ledger:[0xc7a1f5,'▤'],echo:[0x84e1e1,'◇'],seal:[0xe9c777,'✦']};
    for(const marker of view.markers){
     const p=point(marker.x,marker.y),[color,glyph]=styles[marker.id]||[0xdcc99f,'·'];
     const halo=this.add.circle(p.x,p.y,30,color,.14).setStrokeStyle(1,color,.8).setDepth(20);
     if(marker.kind==='npc'){
-     this.add.ellipse(p.x,p.y+8,29,30,hallway?0x9185b4:0xcab897).setStrokeStyle(2,0x6c5261).setDepth(21);
+     this.add.ellipse(p.x,p.y+8,29,30,archive?0x9d83b9:hallway?0x9185b4:0xcab897).setStrokeStyle(2,0x6c5261).setDepth(21);
      this.add.circle(p.x,p.y-14,12,0xd8b293).setStrokeStyle(2,0x403637).setDepth(22);
      this.add.rectangle(p.x+11,p.y+6,16,22,0xf2e0b5).setAngle(-9).setDepth(23);
     }else{
