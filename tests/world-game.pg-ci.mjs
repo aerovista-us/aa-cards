@@ -159,13 +159,17 @@ if(process.env.WORLD_RESUME_WORKER==='1'){
   const names={load:'fixture.world.load',create:'fixture.world.create',action:'fixture.world.action',travel:'fixture.world.travel',map:'fixture.world.map'};
   const subjects={'composed-a':'fixture-composed-a','composed-a-relogin':'fixture-composed-a','composed-b':'fixture-composed-b'};
   const activeSessions=new Set(Object.keys(subjects));
+  let mismatchIdentity=false, grantServiceUnavailable=false;
   const grants=new Map([['fixture-composed-a',new Set([names.load])],['fixture-composed-b',new Set([names.load,names.create,names.action])]]);
   const composedAdapter={
    auth:{resolveSession:async token=>({ok:true,authenticated:activeSessions.has(token),identityId:subjects[token]})},
    identity:{
     describe:async token=>({ok:true,authenticated:activeSessions.has(token),
-      identity:activeSessions.has(token)?{identityId:subjects[token],status:'active'}:null}),
-    can:async ({identityId,capability})=>({ok:true,allowed:grants.get(identityId)?.has(capability)===true})
+      identity:activeSessions.has(token)?{identityId:mismatchIdentity?'fixture-other-identity':subjects[token],status:'active'}:null}),
+    can:async ({identityId,capability})=>{
+      if(grantServiceUnavailable)throw Error('private_grant_gateway_detail');
+      return {ok:true,allowed:grants.get(identityId)?.has(capability)===true};
+    }
    }
   };
   const priorHandler=handler;
@@ -191,6 +195,22 @@ if(process.env.WORLD_RESUME_WORKER==='1'){
    assert.equal(acted.status,200);assert.equal(acted.body.view.revision,1);
    assert.equal(acted.body.view.mission.steps[0].complete,true);
    const committed=await stored(runId);
+   // Distinct native resolve and describe results cannot become authenticated
+   // game authority, even if the cookie and a grant otherwise appear valid.
+   mismatchIdentity=true;
+   assert.deepEqual(await call('/api/game/world'),{status:401,body:{error:'authentication_required'}});
+   mismatchIdentity=false;
+   assert.deepEqual(await stored(runId),committed);
+   // Gateway outages must fail closed with bounded public errors, and never
+   // leak private adapter details or write after a failed capability check.
+   grantServiceUnavailable=true;
+   const readDown=await call('/api/game/world');
+   assert.deepEqual(readDown,{status:503,body:{error:'world_unavailable'}});
+   const writeDown=await call('/api/game/world/actions',{method:'POST',
+    value:{runId,expectedRevision:1,command:{type:'move',dx:1,dy:0}}});
+   assert.deepEqual(writeDown,{status:503,body:{error:'world_unavailable'}});
+   grantServiceUnavailable=false;
+   assert.deepEqual(await stored(runId),committed);
    assert.equal((await call('/api/game/world/actions',{method:'POST',value:{runId,expectedRevision:0,command:{type:'move',dx:1,dy:0}}})).status,409);
    assert.equal((await call('/api/game/world/actions',{method:'POST',value:{runId,expectedRevision:1,command:{type:'travel',target:'exit'}}})).status,403);
    grants.get(subjects['composed-a']).delete(names.action);
