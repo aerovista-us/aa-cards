@@ -19,7 +19,7 @@ export function createOwnerWorldInteractionStore({pool,authorizeWorld}={}){
  // Every creation for this game's owner slot takes the same transaction lock.
  // This also serializes two tabs whose initial reads both returned run_not_found.
  async function currentRow(client,owner){
-  const result=await client.query("SELECT id,revision,state FROM ascension_player_runs WHERE owner_subject=$1 AND state->>'location' IN ('afterlife-placement-office','afterlife-hallway') ORDER BY updated_at DESC,id ASC LIMIT 2",[owner]);
+  const result=await client.query("SELECT id,revision,state FROM ascension_player_runs WHERE owner_subject=$1 AND state->>'location' IN ('afterlife-placement-office','afterlife-hallway','archive-of-echoes') ORDER BY updated_at DESC,id ASC LIMIT 2",[owner]);
   if(result.rows.length>1)throw fail('ambiguous_run',503);
   return result.rows[0]||null;
  }

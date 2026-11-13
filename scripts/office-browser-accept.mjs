@@ -61,8 +61,14 @@ try{
  const ready=()=>page.waitForFunction(()=>document.querySelector('#office-scene').dataset.phase==='ready'&&document.querySelector('#office-scene').dataset.animating!=='true');
  const position=(x,y)=>page.waitForFunction(([x,y])=>document.querySelector('#position').dataset.x===String(x)&&document.querySelector('#position').dataset.y===String(y)&&document.querySelector('#office-scene').dataset.phase==='ready'&&document.querySelector('#office-scene').dataset.animating!=='true',[x,y]);
  const action=async id=>{await page.locator('[data-action="'+id+'"]').click();await ready();};
- const coords={records:[4,5],caseworker:[4,2],stat:[1,3],rolodex:[6,3],exit:[4,1],attendant:[4,3],inspection:[2,3],destination:[4,1],return:[4,5]};
- const visit=async id=>{await page.locator('[data-marker="'+id+'"]').click();await position(...coords[id]);};
+ const coords={records:[4,5],caseworker:[4,2],stat:[1,3],rolodex:[6,3],exit:[4,1],attendant:[4,3],inspection:[2,3],destination:[4,1],return:[4,5],archivist:[3,3],ledger:[1,3],echo:[5,3],seal:[3,1]};
+ const visit=async id=>{
+  const world=await page.locator('#office-scene').getAttribute('data-world');
+  const point=world==='archive-of-echoes'&&id==='return'?[3,5]:coords[id];
+  await page.locator('[data-marker="'+id+'"]').click();await position(...point);
+ };
+ const openMap=async()=>{if(!await page.locator('details.map-details').evaluate(el=>el.open))
+  await page.getByText('Accessible area map',{exact:true}).click();};
  await page.goto(uiOrigin+'/game/',{waitUntil:'networkidle'});
  await page.getByRole('button',{name:'Begin Billy’s intake',exact:true}).click();await ready();
  await page.locator('#office-scene canvas').waitFor({state:'visible'});
@@ -143,6 +149,39 @@ try{
  await action('enter-hallway');await area('afterlife-hallway');
  assert.deepEqual((await store.loadCurrentRun(owner)).state.hallway,completed.hallway);
  assert.equal(await page.locator('#inventory [data-item="placement-pass"]').count(),1);
+ let archiveBrowserComplete=false;
+ if(resolution==='report'){
+  await openMap();
+  await visit('destination');await action('enter-archive');await area('archive-of-echoes');await position(3,5);
+  assert.equal(await page.locator('#scene-title').innerText(),'Archive of Echoes');
+  assert.equal(await page.locator('#accessible-map button').count(),49);
+  const enteredArchive=projectWorldGame(owner,await store.loadCurrentRun(owner));
+  assert.equal(enteredArchive.mission.complete,false);
+  assert.equal(enteredArchive.archive.resolution,null);
+  assert.deepEqual(enteredArchive.caseFile,completed.caseFile);
+  await openMap();
+  await visit('archivist');await action('talk-archivist');
+  await visit('ledger');await action('inspect-ledger');
+  await visit('echo');await action('inspect-echo');await action('choose-preserve');
+  await visit('seal');await action('use-seal');
+  const filed=projectWorldGame(owner,await store.loadCurrentRun(owner));
+  assert.equal(filed.mission.complete,true);
+  assert.equal(filed.archive.resolution,'preserve');
+  assert.equal(filed.archive.sealIssued,true);
+  assert.deepEqual(filed.caseFile,completed.caseFile);
+  assert.equal(await page.locator('[data-action="use-seal"]').count(),0);
+  await page.reload({waitUntil:'networkidle'});await area('archive-of-echoes');
+  assert.deepEqual(projectWorldGame(owner,await store.loadCurrentRun(owner)),filed);
+  await page.setViewportSize({width:390,height:844});await page.waitForTimeout(150);
+  assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth),true);
+  await page.screenshot({path:resolve(process.env.OFFICE_ARTIFACT_DIR,'main-archive-report-mobile.png'),fullPage:true});
+  await page.setViewportSize({width:1440,height:1100});await page.waitForTimeout(150);
+  await page.screenshot({path:resolve(process.env.OFFICE_ARTIFACT_DIR,'main-archive-report-desktop.png'),fullPage:true});
+  await openMap();await visit('return');await action('return-hallway');await area('afterlife-hallway');
+  assert.equal((await store.loadCurrentRun(owner)).state.archive.resolution,'preserve');
+  await openMap();await visit('return');await position(4,5);
+  archiveBrowserComplete=true;
+ }
  // Another executor commits while this browser retains an older revision.
  const current=await store.loadCurrentRun(owner),safe=projectWorldGame(owner,current).actions.find(a=>a.command.type==='move');
  await store.commitAction(owner,current.id,{expectedRevision:current.revision,command:safe.command});
@@ -162,7 +201,7 @@ try{
   assert.deepEqual(Object.keys(JSON.parse(request.body)).sort(),['command','expectedRevision','runId']);
  console.log(JSON.stringify({scope:'isolated-main-office-browser-fixture',scene:'9x7',intake_complete:true,
   records_inventory:true,assessment_persisted_once:true,placement,glitch:resolution,hallway_encounter:completed.hallway.mode,hallway_complete:true,return_reentry_persisted:true,reload_equal:true,
-  mobile_no_overflow:true,stale_revision_denied:true,inactive_session_view_cleared:true,page_errors:errors.length,production_activation:false}));
+  mobile_no_overflow:true,archive_first_record_complete:archiveBrowserComplete,stale_revision_denied:true,inactive_session_view_cleared:true,page_errors:errors.length,production_activation:false}));
 }catch(error){
  if(page&&process.env.OFFICE_ARTIFACT_DIR){await mkdir(process.env.OFFICE_ARTIFACT_DIR,{recursive:true});await page.screenshot({path:resolve(process.env.OFFICE_ARTIFACT_DIR,'office-'+resolution+'-failure.png'),fullPage:true}).catch(()=>{});}
  throw error;
