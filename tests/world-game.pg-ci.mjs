@@ -13,7 +13,8 @@ import {createWorldGameHandler} from '../gateway/world-game-handler.mjs';
 import {projectWorldGame} from '../gateway/world-game-view.mjs';
 import {createOfficeRun} from '../gateway/world-interaction-engine.mjs';
 import {createWorldGameClient} from '../game/world-client.mjs';
-import {completeClient,completeHallwayClient,completeState} from './support/office-journey.mjs';
+import {nextOfficeMove} from '../game/office-navigation.mjs';
+import {completeClient,completeHallwayClient,completeState,enterHallwayState,completeHallwayState} from './support/office-journey.mjs';
 if(process.env.ASCENSION_DISPOSABLE_PG!=='1'||process.env.PGHOST!=='127.0.0.1'||
  process.env.PGDATABASE!=='ascension_world_ci'||process.env.PGUSER!=='ascension_ci'||!process.env.WORLD_PG_MODULE_PATH)
  throw Error('Explicit disposable loopback PostgreSQL configuration required');
@@ -132,6 +133,73 @@ if(process.env.WORLD_RESUME_WORKER==='1'){
   await store.commitAction(legacyOwner,legacy.runId,{expectedRevision:legacy.revision,command:{type:'inspect',target:'rolodex'}});
   const migrated=await store.loadCurrentRun(legacyOwner);assert.equal(migrated.state.schemaVersion,3);assert.equal(migrated.revision,legacy.revision+1);
   assert.deepEqual(migrated.state.rng,original.rng);assert.deepEqual(migrated.state.inventory,original.inventory);assert.deepEqual(migrated.state.consequences,original.consequences);
+ });
+ await t.test('Archive of Echoes: owner-locked PostgreSQL save/restore, both consequences and choices',async()=>{
+  const step=async(who,id,command)=>{
+   const before=await store.loadRun(who,id);
+   return store.commitAction(who,id,{expectedRevision:before.revision,command});
+  };
+  const visit=async(who,id,target)=>{
+   let current=await store.loadRun(who,id);
+   const marker=projectWorldGame(who,current).markers.find(item=>item.id===target);
+   assert.ok(marker,'known server-projected Archive marker');
+   for(let attempts=0;attempts<64;attempts++){
+    if(current.state.player.x===marker.x&&current.state.player.y===marker.y)return current;
+    const choice=nextOfficeMove(projectWorldGame(who,current),marker);
+    assert.ok(choice,'route must stay passable');
+    current=await store.commitAction(who,id,{expectedRevision:current.revision,command:choice.command});
+   }
+   assert.fail('bounded Archive navigation exceeded');
+  };
+  for(const [glitch,choice]of [['report','preserve'],['conceal','release']]){
+   const who={subject:'fixture-archive-'+glitch},id='fixture-archive-'+glitch;
+   const prior=completeHallwayState(enterHallwayState(completeState(
+    createOfficeRun({ownerId:who.subject,runId:id,seedString:'fixture-archive-'+glitch}),
+    {placement:'memory',resolution:glitch})));
+   assert.equal(prior.schemaVersion,3);
+   await pool.query('INSERT INTO ascension_player_runs (id,owner_subject,revision,state) VALUES ($1,$2,$3,$4::jsonb)',
+    [id,who.subject,prior.revision,JSON.stringify(prior)]);
+   await visit(who,id,'destination');
+   const entered=await step(who,id,{type:'travel',target:'destination'});
+   assert.equal(entered.state.schemaVersion,4);assert.equal(entered.state.location,'archive-of-echoes');
+   assert.deepEqual(entered.state.rng,prior.rng);
+   assert.deepEqual(entered.state.inventory,prior.inventory);
+   assert.deepEqual(entered.state.consequences,prior.consequences);
+   const other={subject:'fixture-player-a'};
+   await assert.rejects(store.loadRun(other,id),e=>e.status===404);
+   await assert.rejects(store.commitAction(who,id,{expectedRevision:entered.revision-1,
+    command:{type:'inspect',target:'return'}}),e=>e.status===409);
+   await visit(who,id,'archivist');
+   await step(who,id,{type:'talk',target:'archivist',topic:'introduction'});
+   await visit(who,id,'ledger');
+   await step(who,id,{type:'inspect',target:'ledger'});
+   await visit(who,id,'echo');
+   await step(who,id,{type:'inspect',target:'echo'});
+   const chosen=await step(who,id,{type:'choose',target:'echo',choice});
+   const chosenRow=(await pool.query('SELECT * FROM ascension_player_runs WHERE id=$1',[id])).rows[0];
+   await assert.rejects(step(who,id,{type:'choose',target:'echo',
+    choice:choice==='preserve'?'release':'preserve'}),e=>e.status===422);
+   assert.deepEqual((await pool.query('SELECT * FROM ascension_player_runs WHERE id=$1',[id])).rows[0],
+    chosenRow,'rejected replay must not mutate persisted state');
+   await visit(who,id,'seal');
+   const sealed=await step(who,id,{type:'use',target:'seal'});
+   assert.equal(sealed.state.archive.sealIssued,true);
+   assert.equal(sealed.state.archive.resolution,choice);
+   assert.equal(projectWorldGame(who,sealed).mission.complete,true);
+   assert.deepEqual(sealed.state.rng,prior.rng);
+   const resumingStore=createOwnerWorldInteractionStore({pool,authorizeWorld});
+   assert.deepEqual(await resumingStore.loadCurrentRun(who),
+    {id:sealed.id,revision:sealed.revision,state:sealed.state});
+   await visit(who,id,'return');
+   const returned=await step(who,id,{type:'travel',target:'return'});
+   assert.equal(returned.state.location,'afterlife-hallway');
+   assert.equal(returned.state.schemaVersion,4);
+   assert.deepEqual(returned.state.archive,sealed.state.archive);
+   await visit(who,id,'destination');
+   const revisited=await step(who,id,{type:'travel',target:'destination'});
+   assert.deepEqual(revisited.state.archive,sealed.state.archive);
+   assert.equal(revisited.state.rng.rngDraws,1);
+  }
  });
  await t.test('inactive identity clears the client view without changing the saved run',async()=>{
   const before=await store.loadCurrentRun(identity);
