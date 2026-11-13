@@ -208,6 +208,41 @@ if(process.env.WORLD_RESUME_WORKER==='1'){
    grants.get(subjects['composed-a']).delete(names.load);
    assert.equal((await call('/api/game/world',{token:'composed-a-relogin'})).status,403);
    assert.deepEqual(await stored(runId),committed);
+   // The same staged Account + grant + PostgreSQL path must support an actual
+   // complete authored journey, not just a one-action and denial fixture.
+   grants.get(subjects['composed-a']).add(names.load);
+   grants.get(subjects['composed-a']).add(names.action);
+   grants.get(subjects['composed-a']).add(names.travel);
+   grants.get(subjects['composed-b']).add(names.travel);
+   const aClient=createWorldGameClient({origin,fetchImpl:fetchAs('composed-a-relogin')});
+   await aClient.refresh();assert.equal(aClient.snapshot().phase,'ready');
+   await completeClient(aClient,{placement:'present',resolution:'conceal'});
+   await completeHallwayClient(aClient);
+   const bClient=createWorldGameClient({origin,fetchImpl:fetchAs('composed-b')});
+   await bClient.refresh();assert.equal(bClient.snapshot().phase,'ready');
+   await completeClient(bClient,{placement:'memory',resolution:'report'});
+   await completeHallwayClient(bClient);
+   const aRow=await stored(runId),bRow=await stored(other.body.view.runId);
+   assert.equal(aRow.state.consequences.hallway,'scrutiny');
+   assert.equal(bRow.state.consequences.hallway,'assistance');
+   assert.equal(aRow.state.hallway.inspectionComplete,true);
+   assert.equal(bRow.state.hallway.inspectionComplete,false);
+   assert.equal(aRow.state.hallway.destinationRead,true);
+   assert.equal(bRow.state.hallway.destinationRead,true);
+   assert.equal(aRow.state.rng.rngDraws,1);
+   assert.equal(bRow.state.rng.rngDraws,1);
+   const freshA=createWorldGameClient({origin,fetchImpl:fetchAs('composed-a-relogin')});
+   const freshB=createWorldGameClient({origin,fetchImpl:fetchAs('composed-b')});
+   await freshA.refresh();await freshB.refresh();
+   assert.deepEqual(freshA.snapshot().view,aClient.snapshot().view);
+   assert.deepEqual(freshB.snapshot().view,bClient.snapshot().view);
+   // Revoking travel after completing the journey must not let the player
+   // return to the Office, even if a nearby destination could be reached.
+   grants.get(subjects['composed-a']).delete(names.travel);
+   assert.equal((await call('/api/game/world/actions',{method:'POST',token:'composed-a-relogin',
+    value:{runId,expectedRevision:Number(aRow.revision),command:{type:'travel',target:'return'}}})).status,403);
+   assert.deepEqual(await stored(runId),aRow);
+   assert.deepEqual(await stored(other.body.view.runId),bRow);
   }finally{handler=priorHandler;}
  });
  await t.test('inactive identity clears the client view without changing the saved run',async()=>{
