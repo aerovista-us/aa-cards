@@ -133,6 +133,27 @@ if(process.env.WORLD_RESUME_WORKER==='1'){
   const migrated=await store.loadCurrentRun(legacyOwner);assert.equal(migrated.state.schemaVersion,3);assert.equal(migrated.revision,legacy.revision+1);
   assert.deepEqual(migrated.state.rng,original.rng);assert.deepEqual(migrated.state.inventory,original.inventory);assert.deepEqual(migrated.state.consequences,original.consequences);
  });
+ await t.test('current App Adapter grant denial preserves real PostgreSQL row and revision',async()=>{
+  const {createWorldCapabilityAuthorizer}=await import('../gateway/world-capability-policy.mjs');
+  const names={load:'fixture.world.load',create:'fixture.world.create',action:'fixture.world.action',travel:'fixture.world.travel',map:'fixture.world.map'};
+  const grants=new Set(Object.values(names)),who={subject:'fixture-capability-player'};
+  const adapter={identity:{can:async({identityId,capability})=>({ok:true,allowed:identityId===who.subject&&grants.has(capability)})}};
+  const protectedStore=createOwnerWorldInteractionStore({pool,authorizeWorld:createWorldCapabilityAuthorizer({adapter,capabilityNames:names})});
+  await protectedStore.createRun(who,'fixture-capability-run');
+  await protectedStore.commitAction(who,'fixture-capability-run',{expectedRevision:0,command:{type:'inspect',target:'notice'}});
+  const before=(await pool.query('SELECT * FROM ascension_player_runs WHERE id=$1',['fixture-capability-run'])).rows[0];
+  grants.delete(names.travel);
+  await assert.rejects(protectedStore.commitAction(who,'fixture-capability-run',
+   {expectedRevision:1,command:{type:'travel',target:'exit'}}),e=>e.status===403);
+  grants.delete(names.action);
+  await assert.rejects(protectedStore.commitAction(who,'fixture-capability-run',
+   {expectedRevision:1,command:{type:'move',dx:1,dy:0}}),e=>e.status===403);
+  const after=(await pool.query('SELECT * FROM ascension_player_runs WHERE id=$1',['fixture-capability-run'])).rows[0];
+  assert.deepEqual(after,before,'Denied grants cannot change row data or revision');
+  grants.delete(names.load);
+  await assert.rejects(protectedStore.loadRun(who,'fixture-capability-run'),e=>e.status===403);
+  assert.deepEqual((await pool.query('SELECT * FROM ascension_player_runs WHERE id=$1',['fixture-capability-run'])).rows[0],before);
+ });
  await t.test('inactive identity clears the client view without changing the saved run',async()=>{
   const before=await store.loadCurrentRun(identity);
   active=false;await client.refresh();assert.equal(client.snapshot().phase,'signed_out');

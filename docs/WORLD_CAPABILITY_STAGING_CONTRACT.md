@@ -30,4 +30,5 @@ Only the exact, strict `{ok:true,allowed:true}` response permits progress. A gra
 
 - `tests/world-capability-policy.test.mjs`: constructor denial, operation mapping, strict grant response, action+travel double grant, revoked permissions, malformed request refusal and gateway failure.
 - `tests/owner-world-interaction-store.test.mjs`: validates policy supplied directly to owner store; denied travel/action grants preserve the existing revision and state.
-- Synthetic unit tests only. This change does not run a real Account browser, write to production PostgreSQL, register capabilities, or prove protected map acceptance.
+- `tests/world-game.pg-ci.mjs`: runs the same denial checks through a genuine disposable PostgreSQL owner-store transaction, asserting the complete persisted row and revision remain unchanged for missing travel, action and load grants. NXCore isolated PostgreSQL 16 run: 10/10 passed (including nine subtests, November 12). The CI job reruns the fixture on exact PR head.
+- All grants and identities in these tests are disposable synthetic fixtures. This does not run a real Account browser, write to production PostgreSQL, register capabilities, or prove protected map acceptance.
