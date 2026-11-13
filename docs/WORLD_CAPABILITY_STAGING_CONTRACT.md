@@ -14,7 +14,7 @@ The exact capability names are **required configuration**, not defaults. Each co
 | Create run (`create`) | configured `create` |
 | Any non-travel world command (`action`) | configured `action` |
 | Travel command (`action` / `travel`) | **both** configured `action` and `travel` |
-| Protected map read (`map`) | configured `map` (separate API still unmounted) |
+| Protected map read (`map`, latest owner run selected by server) | configured `map` (separate API still unmounted) |
 
 Only the exact, strict `{ok:true,allowed:true}` response permits progress. A grant is checked anew for each operation, including subsequent calls after revocation. An unregistered, revoked, malformed, absent, or denied grant never authorizes an action. Adapter failures throw, leaving owner-store transactions to roll back; the current HTTP handler returns a bounded 503. Malformed or authority-injected operation descriptions are denied without contacting the Adapter.
 

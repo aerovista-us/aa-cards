@@ -18,7 +18,7 @@ test('requires distinct approved names and actual App Adapter identity.can',()=>
 test('maps load/create/action/map to named capability, never accepts implicit blanket roles',async()=>{
  const b=build();
  for(const [operation,request]of [['load',{type:'load'}],['create',{type:'create',runId:'run-1'}],
-  ['action',{type:'action',runId:'run-1',command:move}],['map',{type:'map',runId:'run-1'}]]){
+  ['action',{type:'action',runId:'run-1',command:move}],['map',{type:'map'}]]){
   assert.equal(await b.authorize(identity,request),true);
   assert.deepEqual(b.calls.at(-1),{identityId:'fixture-player',capability:names[operation]});
  }
@@ -40,7 +40,7 @@ test('travel requires BOTH action and travel; denied/revoked grant is rechecked'
 test('malformed or injected requests never contact the grant API',async()=>{
  const b=build();
  for(const r of [null,{}, {type:'delete',runId:'run-1'}, {type:'load',ownerId:'other'},
-  {type:'create',runId:'run-1',ownerId:'other'}, {type:'map'},
+  {type:'create',runId:'run-1',ownerId:'other'}, {type:'map',ownerId:'other'},
   {type:'action',runId:'run-1',command:{type:'move',dx:1,dy:0,ownerId:'other'}},
   {type:'action',runId:'run-1',command:{type:'travel',target:'archive'}},
   {type:'action',runId:'run-1',command:{type:'move',dx:2,dy:0}}])

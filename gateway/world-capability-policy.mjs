@@ -17,9 +17,14 @@ function requiredCapabilities(request){
    (request.runId!==undefined&&!validId(request.runId)))return null;
   return ['load'];
  }
+ if(request.type==='map'){
+  // Existing protected map gateway chooses the owner's latest run server-side.
+  if(!shape(request,request.runId===undefined?['type']:['type','runId'])||
+   (request.runId!==undefined&&!validId(request.runId)))return null;
+  return ['map'];
+ }
  if(!validId(request.runId))return null;
  if(request.type==='create'&&shape(request,['type','runId']))return ['create'];
- if(request.type==='map'&&shape(request,['type','runId']))return ['map'];
  if(request.type==='action'&&shape(request,['type','runId','command'])){
   let command;
   try{command=normalizeWorldCommand(request.command)}catch{return null}
