@@ -154,6 +154,62 @@ if(process.env.WORLD_RESUME_WORKER==='1'){
   await assert.rejects(protectedStore.loadRun(who,'fixture-capability-run'),e=>e.status===403);
   assert.deepEqual((await pool.query('SELECT * FROM ascension_player_runs WHERE id=$1',['fixture-capability-run'])).rows[0],before);
  });
+ await t.test('prepared native Account composition enforces two owners, live grants and save/resume through real PostgreSQL',async()=>{
+  const {createPreparedWorldGameHandler}=await import('../gateway/world-staging-composition.mjs');
+  const names={load:'fixture.world.load',create:'fixture.world.create',action:'fixture.world.action',travel:'fixture.world.travel',map:'fixture.world.map'};
+  const subjects={'composed-a':'fixture-composed-a','composed-a-relogin':'fixture-composed-a','composed-b':'fixture-composed-b'};
+  const activeSessions=new Set(Object.keys(subjects));
+  const grants=new Map([['fixture-composed-a',new Set([names.load])],['fixture-composed-b',new Set([names.load,names.create,names.action])]]);
+  const composedAdapter={
+   auth:{resolveSession:async token=>({ok:true,authenticated:activeSessions.has(token),identityId:subjects[token]})},
+   identity:{
+    describe:async token=>({ok:true,authenticated:activeSessions.has(token),
+      identity:activeSessions.has(token)?{identityId:subjects[token],status:'active'}:null}),
+    can:async ({identityId,capability})=>({ok:true,allowed:grants.get(identityId)?.has(capability)===true})
+   }
+  };
+  const priorHandler=handler;
+  handler=createPreparedWorldGameHandler({adapter:composedAdapter,pool,capabilityNames:names,appOrigin:origin,uiOrigin:origin});
+  const call=async(path,{method='GET',token='composed-a',value}={})=>{
+   const response=await fetchAs(token)(origin+path,{method,
+    ...(method==='POST'?{headers:{'Content-Type':'application/json','X-Ascension-CSRF':csrf},body:JSON.stringify(value)}:{})});
+   return {status:response.status,body:await response.json()};
+  };
+  const stored=async id=>(await pool.query('SELECT * FROM ascension_player_runs WHERE id=$1',[id])).rows[0];
+  try{
+   assert.equal((await call('/api/game/world')).status,404);
+   assert.equal((await call('/api/game/world/runs',{method:'POST',value:{}})).status,403);
+   const noCreate=(await pool.query('SELECT count(*)::int AS n FROM ascension_player_runs WHERE owner_subject=$1',[subjects['composed-a']])).rows[0];
+   assert.equal(noCreate.n,0);
+   grants.get(subjects['composed-a']).add(names.create);
+   const created=await call('/api/game/world/runs',{method:'POST',value:{}});
+   assert.equal(created.status,201);assert.equal(created.body.view.revision,0);
+   const runId=created.body.view.runId;
+   assert.deepEqual((await call('/api/game/world')).body.view,created.body.view);
+   grants.get(subjects['composed-a']).add(names.action);
+   const acted=await call('/api/game/world/actions',{method:'POST',value:{runId,expectedRevision:0,command:{type:'inspect',target:'notice'}}});
+   assert.equal(acted.status,200);assert.equal(acted.body.view.revision,1);
+   assert.equal(acted.body.view.mission.steps[0].complete,true);
+   const committed=await stored(runId);
+   assert.equal((await call('/api/game/world/actions',{method:'POST',value:{runId,expectedRevision:0,command:{type:'move',dx:1,dy:0}}})).status,409);
+   assert.equal((await call('/api/game/world/actions',{method:'POST',value:{runId,expectedRevision:1,command:{type:'travel',target:'exit'}}})).status,403);
+   grants.get(subjects['composed-a']).delete(names.action);
+   assert.equal((await call('/api/game/world/actions',{method:'POST',value:{runId,expectedRevision:1,command:{type:'move',dx:1,dy:0}}})).status,403);
+   assert.deepEqual(await stored(runId),committed,'stale and denied operations must preserve the entire PostgreSQL row');
+   assert.equal((await call('/api/game/world/actions',{method:'POST',token:'composed-b',value:{runId,expectedRevision:1,command:{type:'move',dx:1,dy:0}}})).status,404);
+   const other=await call('/api/game/world/runs',{method:'POST',token:'composed-b',value:{}});
+   assert.equal(other.status,201);assert.notEqual(other.body.view.runId,runId);
+   assert.equal((await call('/api/game/world',{token:'composed-b'})).body.view.runId,other.body.view.runId);
+   activeSessions.delete('composed-a');
+   assert.equal((await call('/api/game/world')).status,401);
+   assert.deepEqual(await stored(runId),committed,'session revocation must not mutate the committed save');
+   const resumed=await call('/api/game/world',{token:'composed-a-relogin'});
+   assert.equal(resumed.status,200);assert.deepEqual(resumed.body.view,acted.body.view);
+   grants.get(subjects['composed-a']).delete(names.load);
+   assert.equal((await call('/api/game/world',{token:'composed-a-relogin'})).status,403);
+   assert.deepEqual(await stored(runId),committed);
+  }finally{handler=priorHandler;}
+ });
  await t.test('inactive identity clears the client view without changing the saved run',async()=>{
   const before=await store.loadCurrentRun(identity);
   active=false;await client.refresh();assert.equal(client.snapshot().phase,'signed_out');
